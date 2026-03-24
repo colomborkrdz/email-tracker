@@ -17,7 +17,7 @@ function saveDB(db) {
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
-const NGROK_URL = 'https://heteromorphic-supportively-wendy.ngrok-free.dev';
+const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
 
 function isGoogleProxy(ip, ua) {
   return (ua && ua.includes('GoogleImageProxy')) ||
