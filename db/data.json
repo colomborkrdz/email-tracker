@@ -1,0 +1,67 @@
+{
+  "emails": {
+    "940ae6c6-f6a5-4f7d-8bab-1d69f6771085": {
+      "trackId": "940ae6c6-f6a5-4f7d-8bab-1d69f6771085",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "hola tu hellop",
+      "createdAt": "2026-03-24T01:42:03.240Z"
+    },
+    "d44b1366-927b-440e-ba81-8fc876d6435b": {
+      "trackId": "d44b1366-927b-440e-ba81-8fc876d6435b",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "si estas conmigo",
+      "createdAt": "2026-03-24T01:46:06.411Z"
+    },
+    "9e62a9a7-a87b-4ca5-a581-8184e44f7132": {
+      "trackId": "9e62a9a7-a87b-4ca5-a581-8184e44f7132",
+      "subject": "test",
+      "recipient": "andres@mangacreativestudios.com",
+      "bodyHtml": "h",
+      "createdAt": "2026-03-24T02:04:52.002Z"
+    },
+    "3c05dd31-8e11-4da6-b8de-7d7962efe21a": {
+      "trackId": "3c05dd31-8e11-4da6-b8de-7d7962efe21a",
+      "subject": "(no subject)",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "si estas conmigo hoy",
+      "createdAt": "2026-03-24T02:09:46.635Z"
+    }
+  },
+  "opens": [
+    {
+      "id": "a4e3bdd2-4fda-4063-bcff-72e9526bcac0",
+      "trackId": "test123",
+      "timestamp": "2026-03-24T01:58:44.502Z",
+      "ip": "::1",
+      "userAgent": "curl/8.6.0",
+      "city": "Local Network",
+      "region": "",
+      "country": "localhost",
+      "viaProxy": false
+    },
+    {
+      "id": "9c9329d2-9498-457a-afb0-2abb5ed922b0",
+      "trackId": "test123",
+      "timestamp": "2026-03-24T02:00:46.194Z",
+      "ip": "::1",
+      "userAgent": "curl/8.6.0",
+      "city": "Local Network",
+      "region": "",
+      "country": "localhost",
+      "viaProxy": false
+    },
+    {
+      "id": "9b24173d-8785-4c5b-9a9c-c4ced89a2f4d",
+      "trackId": "9e62a9a7-a87b-4ca5-a581-8184e44f7132",
+      "timestamp": "2026-03-24T02:06:35.983Z",
+      "ip": "::1",
+      "userAgent": "curl/8.6.0",
+      "city": "Local Network",
+      "region": "",
+      "country": "localhost",
+      "viaProxy": false
+    }
+  ]
+}
