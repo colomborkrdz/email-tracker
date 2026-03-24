@@ -27,6 +27,20 @@
       "recipient": "boti82@gmail.com",
       "bodyHtml": "si estas conmigo hoy",
       "createdAt": "2026-03-24T02:09:46.635Z"
+    },
+    "3b262ccd-536d-49f9-b128-63ed4d0bb25f": {
+      "trackId": "3b262ccd-536d-49f9-b128-63ed4d0bb25f",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "Testing tuestday",
+      "createdAt": "2026-03-24T16:26:26.869Z"
+    },
+    "c3318e7a-8c5f-4bef-8fff-10d2a00dcc00": {
+      "trackId": "c3318e7a-8c5f-4bef-8fff-10d2a00dcc00",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "Test tuestda",
+      "createdAt": "2026-03-24T16:28:42.315Z"
     }
   },
   "opens": [
