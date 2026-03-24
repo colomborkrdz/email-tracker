@@ -41,6 +41,13 @@
       "recipient": "boti82@gmail.com",
       "bodyHtml": "Test tuestda",
       "createdAt": "2026-03-24T16:28:42.315Z"
+    },
+    "2fbc3c86-f260-4491-8895-5bb0e26d9089": {
+      "trackId": "2fbc3c86-f260-4491-8895-5bb0e26d9089",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "test tuesday",
+      "createdAt": "2026-03-24T16:32:14.743Z"
     }
   },
   "opens": [
