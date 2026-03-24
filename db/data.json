@@ -69,6 +69,20 @@
       "recipient": "boti82@gmail.com",
       "bodyHtml": "darias todo",
       "createdAt": "2026-03-24T23:13:44.747Z"
+    },
+    "7c550bbd-5c07-4c1d-a5d1-4829eaa46ded": {
+      "trackId": "7c550bbd-5c07-4c1d-a5d1-4829eaa46ded",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "el mas lindo",
+      "createdAt": "2026-03-24T23:19:10.923Z"
+    },
+    "82d9e940-1877-42a7-b175-d8931f491adb": {
+      "trackId": "82d9e940-1877-42a7-b175-d8931f491adb",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "resort",
+      "createdAt": "2026-03-24T23:21:34.994Z"
     }
   },
   "opens": [
