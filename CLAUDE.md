@@ -73,6 +73,16 @@ The pixel route uses a **query parameter**, not a path segment:
 - Deployment takes ~60-90 seconds after push
 - Verify deploy worked by checking the pixel endpoint: `/pixel?id=test123` should return a blank page (not "Not found")
 
+### Email Status States
+Emails have three states tracked via `sentAt` field:
+- **not sent** — created but `sentAt` is absent (drafts, tests)
+- **sent · unseen** — `sentAt` is set, `openCount === 0`
+- **opened** — `openCount > 0`
+
+Use "Mark sent" button on the dashboard card after actually sending the email. Open rate stat counts only sent emails as the denominator.
+
+**When adding new PATCH fields:** always validate `typeof === 'string'` + value integrity before writing to DB. See `docs/solutions/002-mark-as-sent-feature.md`.
+
 ### Gmail Tracking Notes
 - Gmail pre-fetches images via Google proxy — this shows as "Gmail Proxy, Google" in the dashboard
 - This is normal and expected — multiple proxy opens on the same email are Gmail, not the recipient
@@ -81,13 +91,14 @@ The pixel route uses a **query parameter**, not a path segment:
 
 ---
 
-## Current Status (as of March 24, 2026)
+## Current Status (as of March 25, 2026)
 
 - ✅ Railway deployment live and working
 - ✅ Pixel tracking working (opens logged with location + timestamp)
 - ✅ Dashboard showing correct Railway URLs
 - ✅ Google proxy detection working
 - ✅ Tested end-to-end with real email to boti82@gmail.com
+- ✅ "Mark as Sent" feature — 3-state tracking (not sent / sent·unseen / opened)
 
 ### Next Up
 - [ ] Test open tracking from recipient's side (confirm non-proxy open logs correctly)
@@ -111,3 +122,4 @@ The pixel route uses a **query parameter**, not a path segment:
 | Mar 2026 | Use vanilla http module instead of Express | Simplicity, no dependencies |
 | Mar 2026 | JSON file as DB | Fast to build, sufficient for MVP |
 | Mar 2026 | Host on Railway | Simple git-push deploys, free tier available |
+| Mar 2026 | `sentAt` field for "Mark as Sent" | Distinguish drafts from actually-sent emails; open rate only counts sent emails |

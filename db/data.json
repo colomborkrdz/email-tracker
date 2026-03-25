@@ -83,6 +83,20 @@
       "recipient": "boti82@gmail.com",
       "bodyHtml": "resort",
       "createdAt": "2026-03-24T23:21:34.994Z"
+    },
+    "63d8f3aa-3b0a-4172-8c8c-9f8c3d906fa5": {
+      "trackId": "63d8f3aa-3b0a-4172-8c8c-9f8c3d906fa5",
+      "subject": "test",
+      "recipient": "boti82@gmail.com",
+      "bodyHtml": "tu tu",
+      "createdAt": "2026-03-24T23:24:42.320Z"
+    },
+    "6300563a-ac41-43bf-b27c-0b279f7be18b": {
+      "trackId": "6300563a-ac41-43bf-b27c-0b279f7be18b",
+      "subject": "test",
+      "recipient": "boti82",
+      "bodyHtml": "alignment",
+      "createdAt": "2026-03-24T23:40:58.955Z"
     }
   },
   "opens": [
