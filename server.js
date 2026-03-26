@@ -19,11 +19,39 @@ const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 
 const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
 
-function isGoogleProxy(ip, ua) {
-  return (ua && ua.includes('GoogleImageProxy')) ||
-    ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
-    ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
-    ip.startsWith('74.125.') || ip.startsWith('209.85.');
+const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
+
+function isAutomatedScanner(ip, ua, trackId, opens) {
+  // Google proxy IP ranges / UA
+  if ((ua && ua.includes('GoogleImageProxy')) ||
+      ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
+      ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
+      ip.startsWith('74.125.') || ip.startsWith('209.85.')) {
+    return { viaProxy: true, scannerReason: 'google_proxy' };
+  }
+
+  // Missing user-agent
+  if (!ua) {
+    return { viaProxy: true, scannerReason: 'no_ua' };
+  }
+
+  // Suspicious user-agent: no known real client UA present
+  if (!REAL_UA_PATTERNS.some(p => ua.includes(p))) {
+    return { viaProxy: true, scannerReason: 'suspicious_ua' };
+  }
+
+  // Rapid-fire: 3+ hits from same IP on same trackId within 60 seconds
+  const now = Date.now();
+  const recentSameIp = opens.filter(o =>
+    o.trackId === trackId &&
+    o.ip === ip &&
+    (now - new Date(o.timestamp).getTime()) <= 60000
+  );
+  if (recentSameIp.length >= 2) { // 2 existing + this one = 3 total
+    return { viaProxy: true, scannerReason: 'rapid_fire_scanner' };
+  }
+
+  return { viaProxy: false, scannerReason: null };
 }
 
 function geoLookup(ip) {
@@ -64,12 +92,14 @@ const server = http.createServer(async (req, res) => {
     if (trackId) {
       const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
       const userAgent = req.headers['user-agent'] || '';
-      const googleProxy = isGoogleProxy(ip, userAgent);
-      const geo = googleProxy
-        ? { city: 'Gmail Proxy', region: '', country: 'Google' }
-        : await geoLookup(ip);
-
       const db = loadDB();
+      const { viaProxy, scannerReason } = isAutomatedScanner(ip, userAgent, trackId, db.opens);
+      const geo = viaProxy && scannerReason === 'google_proxy'
+        ? { city: 'Gmail Proxy', region: '', country: 'Google' }
+        : viaProxy
+          ? { city: 'Scanner', region: '', country: 'Automated' }
+          : await geoLookup(ip);
+
       db.opens.push({
         id: crypto.randomUUID(),
         trackId,
@@ -79,10 +109,11 @@ const server = http.createServer(async (req, res) => {
         city: geo.city,
         region: geo.region,
         country: geo.country,
-        viaProxy: googleProxy,
+        viaProxy,
+        scannerReason,
       });
       saveDB(db);
-      console.log(`Open logged: ${trackId} | ${googleProxy ? 'Gmail Proxy' : ip} | ${geo.city}, ${geo.country}`);
+      console.log(`Open logged: ${trackId} | ${viaProxy ? `[${scannerReason}]` : ip} | ${geo.city}, ${geo.country}`);
     }
 
     res.writeHead(200, {
