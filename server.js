@@ -30,6 +30,11 @@ function isAutomatedScanner(ip, ua, trackId, opens) {
     return { viaProxy: true, scannerReason: 'google_proxy' };
   }
 
+  // Known email security scanner IP ranges
+  if (ip.startsWith('140.248.') || ip.startsWith('167.82.')) {
+    return { viaProxy: true, scannerReason: 'known_scanner_range' };
+  }
+
   // Missing user-agent
   if (!ua) {
     return { viaProxy: true, scannerReason: 'no_ua' };
