@@ -12,7 +12,11 @@ function loadDB() {
 }
 
 function saveDB(db) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  } catch (err) {
+    console.error(`saveDB failed writing to ${DB_PATH}:`, err);
+  }
 }
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -197,6 +201,7 @@ const server = http.createServer(async (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n✉  Email Tracker running at http://localhost:${PORT}`);
+  console.log(`   DB_PATH: ${DB_PATH}`);
   console.log(`   Public URL: ${NGROK_URL}`);
   console.log(`   Dashboard:  http://localhost:${PORT}/\n`);
 });
