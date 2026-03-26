@@ -5,6 +5,7 @@ const url = require('url');
 const crypto = require('crypto');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'db', 'data.json');
+console.log('RAW DB_PATH env:', process.env.DB_PATH);
 
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) return { emails: {}, opens: [] };
