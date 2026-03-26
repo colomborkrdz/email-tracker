@@ -40,7 +40,7 @@ email-tracker/
 2. Server returns a pixel URL: `https://[BASE_URL]/pixel?id=[trackId]`
 3. User pastes `<img>` tag into email via "Insert HTML for Gmail" Chrome extension
 4. When recipient opens email → Gmail fetches the pixel → server logs IP, location, timestamp
-5. Google proxy IPs (66.102.x, 66.249.x etc.) are detected and labeled "Gmail Proxy, Google"
+5. Each pixel hit is passed through `isAutomatedScanner()` — 5 strategies detect delivery scanners vs. real human opens (see `docs/solutions/003-scanner-detection.md`)
 
 ---
 
@@ -80,12 +80,26 @@ Emails have two states:
 
 Gmail proxy hits are logged and visible in the opens table (marked "(proxy)") but do NOT change the opened status. Open rate = emails with `realOpenCount > 0` divided by total tracked emails.
 
-The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongside `openCount` (all opens). No PATCH route exists — `sentAt` field has been removed.
+The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongside `openCount` (all opens). Each open record stores `viaProxy` (bool) and `scannerReason` (`google_proxy` | `known_scanner_range` | `no_ua` | `suspicious_ua` | `rapid_fire_scanner` | null).
+
+### Automated Scanner Detection
+
+`isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt)` in `server.js` runs on every pixel hit. Five strategies:
+
+| Strategy | Trigger | Time-gated? |
+|---|---|---|
+| `google_proxy` | Google IP ranges or `GoogleImageProxy` UA | Yes — within 120s of `createdAt` |
+| `known_scanner_range` | `140.248.x` or `167.82.x` | Yes — within 120s of `createdAt` |
+| `no_ua` | Missing/empty `User-Agent` | No |
+| `suspicious_ua` | UA doesn't match Mozilla/Chrome/Safari/Outlook | No |
+| `rapid_fire_scanner` | 3+ hits from same IP for same trackId within 60s | No |
+
+IP-range checks are time-gated at 120 seconds: after that threshold, a Google proxy hit counts as a real Gmail open (human opened via Gmail mobile which routes images through Google). UA and rapid-fire checks are always active.
+
+Scanner hits are logged with `viaProxy: true` and `scannerReason: '<strategy>'`. Google proxy hits show as "Gmail Proxy, Google"; other scanners show as "Scanner, Automated". Neither counts toward opened status.
 
 ### Gmail Tracking Notes
-- Gmail pre-fetches images via Google proxy — this shows as "Gmail Proxy, Google" in the dashboard
-- This is normal and expected — multiple proxy opens on the same email are Gmail, not the recipient
-- Recipient's real open shows their actual city/country
+- Gmail pre-fetches images via Google proxy — flagged as `google_proxy` if within 120s, counted as real open if after 120s
 - Recipients must have "Show images" enabled in Gmail for tracking to work
 
 ---
@@ -95,7 +109,7 @@ The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongs
 - ✅ Railway deployment live and working
 - ✅ Pixel tracking working (opens logged with location + timestamp)
 - ✅ Dashboard showing correct Railway URLs
-- ✅ Google proxy detection working
+- ✅ Automated scanner detection working (5 strategies: google_proxy, known_scanner_range, no_ua, suspicious_ua, rapid_fire_scanner + 120s time gate)
 - ✅ Tested end-to-end with real email to boti82@gmail.com
 - ✅ 2-state tracking: unseen / opened (proxy opens logged but don't count as opened)
 
@@ -121,4 +135,4 @@ The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongs
 | Mar 2026 | Use vanilla http module instead of Express | Simplicity, no dependencies |
 | Mar 2026 | JSON file as DB | Fast to build, sufficient for MVP |
 | Mar 2026 | Host on Railway | Simple git-push deploys, free tier available |
-| Mar 2026 | `sentAt` field for "Mark as Sent" | Distinguish drafts from actually-sent emails; open rate only counts sent emails |
+| Mar 2026 | Use `createdAt` (not `sentAt`) as scanner time baseline | `sentAt` required manual "Mark as Sent" action; `createdAt` is set automatically and sufficient — scanners always hit within seconds of delivery |
