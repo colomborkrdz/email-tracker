@@ -28,9 +28,9 @@ const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
 
 function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
   const now = Date.now();
-  const withinScanWindow = emailCreatedAt && (now - new Date(emailCreatedAt).getTime()) <= 120000;
+  const withinScanWindow = emailCreatedAt && (now - new Date(emailCreatedAt).getTime()) <= 600000;
 
-  // IP-based checks only apply within 120s of send — after that, proxy IPs are real human opens
+  // IP-based checks only apply within 600s (10 minutes) of send — after that, proxy IPs are real human opens
   if (withinScanWindow) {
     if ((ua && ua.includes('GoogleImageProxy')) ||
         ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
