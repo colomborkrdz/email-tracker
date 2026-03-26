@@ -21,32 +21,33 @@ const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
 
 const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
 
-function isAutomatedScanner(ip, ua, trackId, opens) {
-  // Google proxy IP ranges / UA
-  if ((ua && ua.includes('GoogleImageProxy')) ||
-      ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
-      ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
-      ip.startsWith('74.125.') || ip.startsWith('209.85.')) {
-    return { viaProxy: true, scannerReason: 'google_proxy' };
+function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
+  const now = Date.now();
+  const withinScanWindow = emailCreatedAt && (now - new Date(emailCreatedAt).getTime()) <= 120000;
+
+  // IP-based checks only apply within 120s of send — after that, proxy IPs are real human opens
+  if (withinScanWindow) {
+    if ((ua && ua.includes('GoogleImageProxy')) ||
+        ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
+        ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
+        ip.startsWith('74.125.') || ip.startsWith('209.85.')) {
+      return { viaProxy: true, scannerReason: 'google_proxy' };
+    }
+
+    if (ip.startsWith('140.248.') || ip.startsWith('167.82.')) {
+      return { viaProxy: true, scannerReason: 'known_scanner_range' };
+    }
   }
 
-  // Known email security scanner IP ranges
-  if (ip.startsWith('140.248.') || ip.startsWith('167.82.')) {
-    return { viaProxy: true, scannerReason: 'known_scanner_range' };
-  }
-
-  // Missing user-agent
+  // UA-based and rapid-fire checks always apply regardless of timing
   if (!ua) {
     return { viaProxy: true, scannerReason: 'no_ua' };
   }
 
-  // Suspicious user-agent: no known real client UA present
   if (!REAL_UA_PATTERNS.some(p => ua.includes(p))) {
     return { viaProxy: true, scannerReason: 'suspicious_ua' };
   }
 
-  // Rapid-fire: 3+ hits from same IP on same trackId within 60 seconds
-  const now = Date.now();
   const recentSameIp = opens.filter(o =>
     o.trackId === trackId &&
     o.ip === ip &&
@@ -98,7 +99,8 @@ const server = http.createServer(async (req, res) => {
       const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
       const userAgent = req.headers['user-agent'] || '';
       const db = loadDB();
-      const { viaProxy, scannerReason } = isAutomatedScanner(ip, userAgent, trackId, db.opens);
+      const email = db.emails[trackId];
+      const { viaProxy, scannerReason } = isAutomatedScanner(ip, userAgent, trackId, db.opens, email?.createdAt);
       const geo = viaProxy && scannerReason === 'google_proxy'
         ? { city: 'Gmail Proxy', region: '', country: 'Google' }
         : viaProxy
