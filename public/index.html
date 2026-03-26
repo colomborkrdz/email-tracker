@@ -126,7 +126,6 @@
   }
   .email-card:hover { border-color: #3a3d43; }
   .email-card.has-opens { border-left: 3px solid var(--accent); }
-  .email-card.is-sent:not(.has-opens) { border-left: 3px solid var(--warn); }
 
   .email-card-header {
     padding: 16px 20px;
@@ -187,19 +186,7 @@
     font-family: 'IBM Plex Mono', monospace;
   }
   .tag.opened { background: var(--accent-dim); color: var(--accent); }
-  .tag.unopened { background: rgba(245,158,11,0.12); color: var(--warn); }
-  .tag.unsent { background: var(--bg3); color: var(--muted); }
-
-  .btn-sent {
-    background: transparent;
-    color: var(--warn);
-    padding: 5px 10px;
-    border: 1px solid rgba(245,158,11,0.3);
-    font-size: 12px;
-  }
-  .btn-sent:hover { background: rgba(245,158,11,0.1); }
-
-  .open-badge.unsent { background: var(--bg3); color: var(--muted); }
+  .tag.unseen { background: var(--bg3); color: var(--muted); }
 
   .email-card-detail {
     display: none;
@@ -446,12 +433,11 @@ async function loadEmails() {
 function renderStats(emails) {
   const total = emails.length;
   const opens = emails.reduce((s, e) => s + e.openCount, 0);
-  const sent = emails.filter(e => e.sentAt);
-  const opened = sent.filter(e => e.openCount > 0).length;
-  const rate = sent.length ? Math.round((opened / sent.length) * 100) : 0;
+  const opened = emails.filter(e => e.realOpenCount > 0).length;
+  const rate = total ? Math.round((opened / total) * 100) : 0;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-opens').textContent = opens;
-  document.getElementById('stat-rate').textContent = sent.length ? `${rate}%` : '—';
+  document.getElementById('stat-rate').textContent = total ? `${rate}%` : '—';
 }
 
 function renderEmails(emails) {
@@ -464,17 +450,10 @@ function renderEmails(emails) {
 }
 
 function emailCard(e) {
-  const opened = e.openCount > 0;
-  const sent = !!e.sentAt;
-
-  let cardClass = '';
-  if (opened) cardClass = 'has-opens';
-  else if (sent) cardClass = 'is-sent';
-
-  let tagClass, tagLabel;
-  if (opened) { tagClass = 'opened'; tagLabel = '✓ opened'; }
-  else if (sent) { tagClass = 'unopened'; tagLabel = '● sent · unseen'; }
-  else { tagClass = 'unsent'; tagLabel = '○ not sent'; }
+  const opened = e.realOpenCount > 0;
+  const cardClass = opened ? 'has-opens' : '';
+  const tagClass = opened ? 'opened' : 'unseen';
+  const tagLabel = opened ? '✓ opened' : '○ unseen';
 
   let opensHtml = '';
   if (e.opens && e.opens.length) {
@@ -484,7 +463,7 @@ function emailCard(e) {
         <tr>
           <td>${i + 1}</td>
           <td>${formatTime(o.timestamp)}</td>
-          <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}</td>
+          <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}${o.viaProxy ? ' <span style="color:var(--muted);font-size:10px">(proxy)</span>' : ''}</td>
           <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px">${o.ip}</td>
         </tr>`).join('') +
       `</tbody></table>`;
@@ -492,30 +471,20 @@ function emailCard(e) {
     opensHtml = `<div class="no-opens">Not opened yet</div>`;
   }
 
-  const sentInfo = sent
-    ? `<span>Sent: ${formatTime(e.sentAt)}</span>`
-    : `<span style="color:var(--warn)">Not sent yet</span>`;
-
-  const markSentBtn = !sent
-    ? `<button class="btn-sent" onclick="event.stopPropagation(); markSent('${e.trackId}')">Mark sent</button>`
-    : '';
-
   return `
   <div class="email-card ${cardClass}" id="card-${e.trackId}">
     <div class="email-card-header" onclick="toggleDetail('${e.trackId}')">
-      <div class="open-badge ${opened ? 'opened' : (sent ? 'unopened' : 'unsent')}">${e.openCount}</div>
+      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.openCount}</div>
       <div class="email-meta">
         <div class="email-subject">${esc(e.subject)}</div>
         <div class="email-sub">
           <span>To: ${esc(e.recipient || '—')}</span>
           <span>Created: ${formatTime(e.createdAt)}</span>
-          ${sentInfo}
           ${e.locations && e.locations.length ? `<span>📍 ${e.locations.join(' · ')}</span>` : ''}
         </div>
       </div>
       <div class="card-actions">
         <span class="tag ${tagClass}">${tagLabel}</span>
-        ${markSentBtn}
         <button class="btn-danger" onclick="event.stopPropagation(); deleteEmail('${e.trackId}')">delete</button>
       </div>
     </div>
@@ -532,16 +501,6 @@ function emailCard(e) {
 function toggleDetail(id) {
   const d = document.getElementById('detail-' + id);
   d.classList.toggle('open');
-}
-
-async function markSent(trackId) {
-  const res = await fetch(`${API}/api/emails/${trackId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sentAt: new Date().toISOString() })
-  });
-  if (!res.ok) { alert('Failed to mark as sent'); return; }
-  loadEmails();
 }
 
 async function deleteEmail(trackId) {

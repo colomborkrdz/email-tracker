@@ -74,14 +74,13 @@ The pixel route uses a **query parameter**, not a path segment:
 - Verify deploy worked by checking the pixel endpoint: `/pixel?id=test123` should return a blank page (not "Not found")
 
 ### Email Status States
-Emails have three states tracked via `sentAt` field:
-- **not sent** — created but `sentAt` is absent (drafts, tests)
-- **sent · unseen** — `sentAt` is set, `openCount === 0`
-- **opened** — `openCount > 0`
+Emails have two states:
+- **unseen** — no opens where `viaProxy === false`
+- **opened** — at least one open where `viaProxy === false`
 
-Use "Mark sent" button on the dashboard card after actually sending the email. Open rate stat counts only sent emails as the denominator.
+Gmail proxy hits are logged and visible in the opens table (marked "(proxy)") but do NOT change the opened status. Open rate = emails with `realOpenCount > 0` divided by total tracked emails.
 
-**When adding new PATCH fields:** always validate `typeof === 'string'` + value integrity before writing to DB. See `docs/solutions/002-mark-as-sent-feature.md`.
+The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongside `openCount` (all opens). No PATCH route exists — `sentAt` field has been removed.
 
 ### Gmail Tracking Notes
 - Gmail pre-fetches images via Google proxy — this shows as "Gmail Proxy, Google" in the dashboard
@@ -98,7 +97,7 @@ Use "Mark sent" button on the dashboard card after actually sending the email. O
 - ✅ Dashboard showing correct Railway URLs
 - ✅ Google proxy detection working
 - ✅ Tested end-to-end with real email to boti82@gmail.com
-- ✅ "Mark as Sent" feature — 3-state tracking (not sent / sent·unseen / opened)
+- ✅ 2-state tracking: unseen / opened (proxy opens logged but don't count as opened)
 
 ### Next Up
 - [ ] Test open tracking from recipient's side (confirm non-proxy open logs correctly)
