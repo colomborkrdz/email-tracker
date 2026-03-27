@@ -108,17 +108,18 @@ Scanner hits are logged with `viaProxy: true` and `scannerReason: '<strategy>'`.
 
 ---
 
-## Current Status (as of March 25, 2026)
+## Current Status (as of March 27, 2026)
 
 - ✅ Railway deployment live and working
 - ✅ Pixel tracking working (opens logged with location + timestamp)
 - ✅ Dashboard showing correct Railway URLs
-- ✅ Automated scanner detection working (5 strategies: google_proxy, known_scanner_range, no_ua, suspicious_ua, rapid_fire_scanner + 120s time gate)
+- ✅ Scanner detection refactored to behavioral-first: rapid-fire (2-hit threshold) catches unknown ranges; `KNOWN_SCANNER_RANGES` is a small explicit fallback
+- ✅ Retroactive patching: when rapid-fire fires, earlier hits from the same IP/trackId within 60s are flipped to `viaProxy: true` in the same DB write
+- ✅ Google proxy time gate extended to 600s (was 120s); all other IP-range checks removed from time-gated block
 - ✅ Tested end-to-end with real email to boti82@gmail.com
 - ✅ 2-state tracking: unseen / opened (proxy opens logged but don't count as opened)
 
 ### Next Up
-- [ ] Test open tracking from recipient's side (confirm non-proxy open logs correctly)
 - [ ] Add email open notifications (webhook or email alert when recipient opens)
 - [ ] Optional: custom domain via Railway → Settings → Networking → Custom Domain
 - [ ] Optional: migrate from JSON file DB to SQLite for reliability
@@ -140,3 +141,5 @@ Scanner hits are logged with `viaProxy: true` and `scannerReason: '<strategy>'`.
 | Mar 2026 | JSON file as DB | Fast to build, sufficient for MVP |
 | Mar 2026 | Host on Railway | Simple git-push deploys, free tier available |
 | Mar 2026 | Use `createdAt` (not `sentAt`) as scanner time baseline | `sentAt` required manual "Mark as Sent" action; `createdAt` is set automatically and sufficient — scanners always hit within seconds of delivery |
+| Mar 2026 | Behavioral detection over IP blocklist | New scanner IP ranges kept appearing; rapid-fire (2+ hits/60s) catches any scanner regardless of IP. `KNOWN_SCANNER_RANGES` kept as a last-resort fallback for slow-drip scanners only |
+| Mar 2026 | Retroactive rapid-fire patching | First hit from an unknown scanner passes all checks; without retroactive correction it stays as a real open permanently. Patch runs in the same DB write cycle as the triggering hit |
