@@ -25,18 +25,24 @@ const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
 
 const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
+const KNOWN_SCANNER_RANGES = ['179.50.15.'];
 
 function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
   const now = Date.now();
 
-  // Rapid-fire check applies to ALL IPs, always — catches unknown scanner ranges
+  // Rapid-fire check applies to ALL IPs, always — 2+ hits from same IP within 60s = scanner
   const recentSameIp = opens.filter(o =>
     o.trackId === trackId &&
     o.ip === ip &&
     (now - new Date(o.timestamp).getTime()) <= 60000
   );
-  if (recentSameIp.length >= 2) { // 2 existing + this one = 3 total
+  if (recentSameIp.length >= 1) { // 1 existing + this one = 2 total
     return { viaProxy: true, scannerReason: 'rapid_fire_scanner' };
+  }
+
+  // Known scanner IP ranges — fallback for confirmed bad actors
+  if (KNOWN_SCANNER_RANGES.some(range => ip.startsWith(range))) {
+    return { viaProxy: true, scannerReason: 'known_scanner_range' };
   }
 
   // Google proxy: time-gated — after 600s, a Google IP hit is a real human open via Gmail
@@ -121,6 +127,19 @@ const server = http.createServer(async (req, res) => {
         viaProxy,
         scannerReason,
       });
+
+      // Retroactively flag earlier hits from the same IP/trackId that slipped through as real opens
+      if (scannerReason === 'rapid_fire_scanner') {
+        const cutoff = Date.now() - 60000;
+        db.opens.forEach(o => {
+          if (o.trackId === trackId && o.ip === ip && !o.viaProxy &&
+              new Date(o.timestamp).getTime() >= cutoff) {
+            o.viaProxy = true;
+            o.scannerReason = 'rapid_fire_scanner';
+          }
+        });
+      }
+
       saveDB(db);
       console.log(`Open logged: ${trackId} | ${viaProxy ? `[${scannerReason}]` : ip} | ${geo.city}, ${geo.country}`);
     }

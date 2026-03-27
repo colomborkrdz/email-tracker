@@ -84,16 +84,21 @@ The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongs
 
 ### Automated Scanner Detection
 
-`isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt)` in `server.js` runs on every pixel hit. Four strategies, evaluated in this order:
+`isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt)` in `server.js` runs on every pixel hit. Five strategies, evaluated in this order:
 
 | Strategy | Trigger | Time-gated? |
 |---|---|---|
-| `rapid_fire_scanner` | 3+ hits from same IP for same trackId within 60s | No — applies to ALL IPs always |
+| `rapid_fire_scanner` | 2+ hits from same IP for same trackId within 60s | No — applies to ALL IPs always |
+| `known_scanner_range` | IP in `KNOWN_SCANNER_RANGES` (e.g. `179.50.15.`) | No |
 | `google_proxy` | Google IP ranges or `GoogleImageProxy` UA | Yes — within 600s of `createdAt` |
 | `no_ua` | Missing/empty `User-Agent` | No |
 | `suspicious_ua` | UA doesn't match Mozilla/Chrome/Safari/Outlook | No |
 
-`rapid_fire_scanner` runs first and catches any scanner IP regardless of range — unknown scanner ranges no longer need manual blocklisting. Google IP ranges are time-gated at 600s: after that threshold, a Google IP hit counts as a real Gmail open (human opened via Gmail mobile). `known_scanner_range` was removed — rapid-fire detection covers this case.
+`rapid_fire_scanner` fires on the **2nd hit** (1 existing + current = 2 total) and **retroactively patches** any earlier opens from the same IP/trackId within the 60s window that were already logged as `viaProxy: false`. This ensures all hits in a rapid-fire burst are flagged, not just the one that crossed the threshold.
+
+`KNOWN_SCANNER_RANGES` in `server.js` is a small explicit blocklist for confirmed bad-actor ranges (`179.50.15.` etc.). Add ranges here when rapid-fire alone isn't sufficient (e.g. slow-drip scanners).
+
+Google IP ranges are time-gated at 600s: after that threshold, a Google IP hit counts as a real Gmail open (human opened via Gmail mobile).
 
 Scanner hits are logged with `viaProxy: true` and `scannerReason: '<strategy>'`. Google proxy hits show as "Gmail Proxy, Google"; other scanners show as "Scanner, Automated". Neither counts toward opened status.
 
