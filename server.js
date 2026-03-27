@@ -28,31 +28,8 @@ const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
 
 function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
   const now = Date.now();
-  const withinScanWindow = emailCreatedAt && (now - new Date(emailCreatedAt).getTime()) <= 600000;
 
-  // IP-based checks only apply within 600s (10 minutes) of send — after that, proxy IPs are real human opens
-  if (withinScanWindow) {
-    if ((ua && ua.includes('GoogleImageProxy')) ||
-        ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
-        ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
-        ip.startsWith('74.125.') || ip.startsWith('209.85.')) {
-      return { viaProxy: true, scannerReason: 'google_proxy' };
-    }
-
-    if (ip.startsWith('140.248.') || ip.startsWith('167.82.') || ip.startsWith('191.104.208.')) {
-      return { viaProxy: true, scannerReason: 'known_scanner_range' };
-    }
-  }
-
-  // UA-based and rapid-fire checks always apply regardless of timing
-  if (!ua) {
-    return { viaProxy: true, scannerReason: 'no_ua' };
-  }
-
-  if (!REAL_UA_PATTERNS.some(p => ua.includes(p))) {
-    return { viaProxy: true, scannerReason: 'suspicious_ua' };
-  }
-
+  // Rapid-fire check applies to ALL IPs, always — catches unknown scanner ranges
   const recentSameIp = opens.filter(o =>
     o.trackId === trackId &&
     o.ip === ip &&
@@ -60,6 +37,26 @@ function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
   );
   if (recentSameIp.length >= 2) { // 2 existing + this one = 3 total
     return { viaProxy: true, scannerReason: 'rapid_fire_scanner' };
+  }
+
+  // Google proxy: time-gated — after 600s, a Google IP hit is a real human open via Gmail
+  const withinGoogleWindow = emailCreatedAt && (now - new Date(emailCreatedAt).getTime()) <= 600000;
+  if (withinGoogleWindow) {
+    if ((ua && ua.includes('GoogleImageProxy')) ||
+        ip.startsWith('66.102.') || ip.startsWith('66.249.') ||
+        ip.startsWith('64.233.') || ip.startsWith('72.14.') ||
+        ip.startsWith('74.125.') || ip.startsWith('209.85.')) {
+      return { viaProxy: true, scannerReason: 'google_proxy' };
+    }
+  }
+
+  // UA-based checks always apply
+  if (!ua) {
+    return { viaProxy: true, scannerReason: 'no_ua' };
+  }
+
+  if (!REAL_UA_PATTERNS.some(p => ua.includes(p))) {
+    return { viaProxy: true, scannerReason: 'suspicious_ua' };
   }
 
   return { viaProxy: false, scannerReason: null };

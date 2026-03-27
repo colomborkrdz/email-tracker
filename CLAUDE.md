@@ -84,17 +84,16 @@ The `GET /api/emails` response includes `realOpenCount` (non-proxy opens) alongs
 
 ### Automated Scanner Detection
 
-`isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt)` in `server.js` runs on every pixel hit. Five strategies:
+`isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt)` in `server.js` runs on every pixel hit. Four strategies, evaluated in this order:
 
 | Strategy | Trigger | Time-gated? |
 |---|---|---|
-| `google_proxy` | Google IP ranges or `GoogleImageProxy` UA | Yes — within 120s of `createdAt` |
-| `known_scanner_range` | `140.248.x` or `167.82.x` | Yes — within 120s of `createdAt` |
+| `rapid_fire_scanner` | 3+ hits from same IP for same trackId within 60s | No — applies to ALL IPs always |
+| `google_proxy` | Google IP ranges or `GoogleImageProxy` UA | Yes — within 600s of `createdAt` |
 | `no_ua` | Missing/empty `User-Agent` | No |
 | `suspicious_ua` | UA doesn't match Mozilla/Chrome/Safari/Outlook | No |
-| `rapid_fire_scanner` | 3+ hits from same IP for same trackId within 60s | No |
 
-IP-range checks are time-gated at 120 seconds: after that threshold, a Google proxy hit counts as a real Gmail open (human opened via Gmail mobile which routes images through Google). UA and rapid-fire checks are always active.
+`rapid_fire_scanner` runs first and catches any scanner IP regardless of range — unknown scanner ranges no longer need manual blocklisting. Google IP ranges are time-gated at 600s: after that threshold, a Google IP hit counts as a real Gmail open (human opened via Gmail mobile). `known_scanner_range` was removed — rapid-fire detection covers this case.
 
 Scanner hits are logged with `viaProxy: true` and `scannerReason: '<strategy>'`. Google proxy hits show as "Gmail Proxy, Google"; other scanners show as "Scanner, Automated". Neither counts toward opened status.
 
