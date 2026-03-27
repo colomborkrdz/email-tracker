@@ -39,7 +39,7 @@ function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
       return { viaProxy: true, scannerReason: 'google_proxy' };
     }
 
-    if (ip.startsWith('140.248.') || ip.startsWith('167.82.')) {
+    if (ip.startsWith('140.248.') || ip.startsWith('167.82.') || ip.startsWith('191.104.208.')) {
       return { viaProxy: true, scannerReason: 'known_scanner_range' };
     }
   }
