@@ -97,7 +97,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsed.pathname;
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
@@ -191,6 +191,37 @@ const server = http.createServer(async (req, res) => {
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(result));
+  }
+
+  if (pathname.startsWith('/api/emails/') && req.method === 'PATCH') {
+    const trackId = pathname.split('/')[3];
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const { subject, recipient } = parsed;
+        if ((subject !== undefined && typeof subject !== 'string') ||
+            (recipient !== undefined && typeof recipient !== 'string')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'subject and recipient must be strings' }));
+        }
+        const db = loadDB();
+        if (!db.emails[trackId]) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'not found' }));
+        }
+        if (subject !== undefined) db.emails[trackId].subject = subject.trim() || '(no subject)';
+        if (recipient !== undefined) db.emails[trackId].recipient = recipient.trim();
+        saveDB(db);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+    });
+    return;
   }
 
   if (pathname.startsWith('/api/emails/') && req.method === 'DELETE') {
