@@ -25,7 +25,7 @@ const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
 
 const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
-const KNOWN_SCANNER_RANGES = ['179.50.15.'];
+const KNOWN_SCANNER_RANGES = ['179.50.15.', '172.225.250.'];
 
 function isAutomatedScanner(ip, ua, trackId, opens, emailCreatedAt) {
   const now = Date.now();
