@@ -447,6 +447,7 @@
 const API = 'https://email-tracker-production-b00f.up.railway.app';
 let allEmails = [];
 let _pendingTrackId = null;
+const isRealOpen = o => !o.viaProxy;
 
 async function loadEmails() {
   try {
@@ -488,7 +489,7 @@ function emailCard(e) {
   const tagClass = opened ? 'opened' : 'unseen';
   const tagLabel = opened ? '✓ opened' : '○ unseen';
 
-  const realOpens = (e.opens || []).filter(o => !o.viaProxy);
+  const realOpens = (e.opens || []).filter(isRealOpen);
   let opensHtml = '';
   if (realOpens.length) {
     opensHtml = `<table class="opens-table">
@@ -508,7 +509,7 @@ function emailCard(e) {
   return `
   <div class="email-card ${cardClass}" id="card-${e.trackId}">
     <div class="email-card-header" onclick="toggleDetail('${e.trackId}')">
-      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.realOpenCount}</div>
+      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.realOpenCount ?? realOpens.length}</div>
       <div class="email-meta">
         <div class="email-subject">${esc(e.subject)}</div>
         <div class="email-sub">
