@@ -493,13 +493,11 @@ function emailCard(e) {
   let opensHtml = '';
   if (realOpens.length) {
     opensHtml = `<table class="opens-table">
-      <thead><tr><th>#</th><th>Time</th><th>Location</th><th>IP</th></tr></thead>
+      <thead><tr><th>#</th><th>Time</th></tr></thead>
       <tbody>` + realOpens.map((o, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${formatTime(o.timestamp)}</td>
-          <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}</td>
-          <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px">${o.ip}</td>
         </tr>`).join('') +
       `</tbody></table>`;
   } else {
