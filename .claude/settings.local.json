@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(node -c server.js)",
+      "Bash(node server.js)",
+      "Bash(curl -s -X POST http://localhost:3000/api/emails -H 'Content-Type: application/json' -d '{}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git diff:*)",
+      "Bash(gh issue:*)"
+    ]
+  }
+}
