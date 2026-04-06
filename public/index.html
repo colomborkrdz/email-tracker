@@ -523,10 +523,6 @@ function emailCard(e) {
     </div>
     <div class="email-card-detail" id="detail-${e.trackId}">
       ${opensHtml}
-      <div class="pixel-url" style="margin-top:14px">
-        <code>${API}/pixel?id=${e.trackId}</code>
-        <button class="copy-btn" style="margin:0;flex-shrink:0" onclick="copyText('${API}/pixel?id=${e.trackId}')">Copy URL</button>
-      </div>
     </div>
   </div>`;
 }

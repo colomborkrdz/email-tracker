@@ -17,6 +17,7 @@ tags:
 related:
   - docs/solutions/003-scanner-detection.md
   - docs/solutions/004-scanner-detection-final.md
+  - docs/solutions/007-remove-location-ip-columns-opens-table.md
 ---
 
 # Filter proxy/scanner opens from dashboard display
@@ -80,10 +81,9 @@ if (realOpens.length) {
     <tr>
       <td>${i + 1}</td>
       <td>${formatTime(o.timestamp)}</td>
-      <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}</td>
-      <td>${o.ip}</td>
     </tr>`).join('') + `</tbody></table>`;
 }
+// Note: Location and IP columns were subsequently removed (see docs/solutions/007-remove-location-ip-columns-opens-table.md)
 // ...badge:
 <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.realOpenCount ?? realOpens.length}</div>
 ```
