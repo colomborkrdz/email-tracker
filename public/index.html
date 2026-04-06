@@ -465,7 +465,7 @@ async function loadEmails() {
 
 function renderStats(emails) {
   const total = emails.length;
-  const opens = emails.reduce((s, e) => s + e.openCount, 0);
+  const opens = emails.reduce((s, e) => s + (e.realOpenCount || 0), 0);
   const opened = emails.filter(e => e.realOpenCount > 0).length;
   const rate = total ? Math.round((opened / total) * 100) : 0;
   document.getElementById('stat-total').textContent = total;
@@ -488,15 +488,16 @@ function emailCard(e) {
   const tagClass = opened ? 'opened' : 'unseen';
   const tagLabel = opened ? '✓ opened' : '○ unseen';
 
+  const realOpens = (e.opens || []).filter(o => !o.viaProxy);
   let opensHtml = '';
-  if (e.opens && e.opens.length) {
+  if (realOpens.length) {
     opensHtml = `<table class="opens-table">
       <thead><tr><th>#</th><th>Time</th><th>Location</th><th>IP</th></tr></thead>
-      <tbody>` + e.opens.map((o, i) => `
+      <tbody>` + realOpens.map((o, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${formatTime(o.timestamp)}</td>
-          <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}${o.viaProxy ? ' <span style="color:var(--muted);font-size:10px">(proxy)</span>' : ''}</td>
+          <td>${[o.city, o.country].filter(Boolean).join(', ') || 'Unknown'}</td>
           <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px">${o.ip}</td>
         </tr>`).join('') +
       `</tbody></table>`;
@@ -507,7 +508,7 @@ function emailCard(e) {
   return `
   <div class="email-card ${cardClass}" id="card-${e.trackId}">
     <div class="email-card-header" onclick="toggleDetail('${e.trackId}')">
-      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.openCount}</div>
+      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.realOpenCount}</div>
       <div class="email-meta">
         <div class="email-subject">${esc(e.subject)}</div>
         <div class="email-sub">
