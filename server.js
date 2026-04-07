@@ -167,7 +167,9 @@ const server = http.createServer(async (req, res) => {
     if (!user || !passwordOk) {
       return json(res, 401, { error: 'Invalid email or password' });
     }
-    if (!user.email_verified) {
+    const isSeedUser = process.env.SEED_USER_EMAIL &&
+      user.email === process.env.SEED_USER_EMAIL.toLowerCase().trim();
+    if (!user.email_verified && !isSeedUser) {
       return json(res, 403, { error: 'Please verify your email before logging in' });
     }
 
