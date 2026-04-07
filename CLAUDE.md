@@ -8,7 +8,7 @@
 
 A self-hosted email open tracker — shows if an email was opened, from where, and how many times. Built as an alternative to Mixpanel/Superhuman tracking.
 
-**Live URL:** https://email-tracker-production-b00f.up.railway.app  
+**Live URL:** https://track.mangacreativestudios.com  
 **GitHub:** https://github.com/colomborkrdz/email-tracker  
 **Stack:** Node.js (vanilla http module), JSON file database, vanilla HTML/JS dashboard  
 **Hosting:** Railway (auto-deploys from GitHub main branch)  

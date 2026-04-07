@@ -22,7 +22,7 @@ function saveDB(db) {
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
-const NGROK_URL = 'https://email-tracker-production-b00f.up.railway.app';
+const NGROK_URL = 'https://track.mangacreativestudios.com';
 
 const REAL_UA_PATTERNS = ['Mozilla', 'Chrome', 'Safari', 'Outlook'];
 const KNOWN_SCANNER_RANGES = ['179.50.15.', '172.225.250.'];
