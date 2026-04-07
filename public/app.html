@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Tracker — Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #161719;
+    --bg3: #1e2023;
+    --border: #2a2d32;
+    --text: #e8e9eb;
+    --muted: #6b7280;
+    --accent: #22d3a0;
+    --accent-dim: rgba(34,211,160,0.12);
+    --warn: #f59e0b;
+    --red: #ef4444;
+    --blue: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--muted); }
+
+  .header-actions { display: flex; gap: 10px; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0e0f11;
+    padding: 8px 16px;
+    font-weight: 500;
+  }
+  .btn-primary:hover { background: #1fba8e; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: #444; }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--red);
+    padding: 5px 10px;
+    border: 1px solid rgba(239,68,68,0.3);
+    font-size: 12px;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+  main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-value { font-size: 28px; font-family: 'IBM Plex Mono', monospace; color: var(--accent); margin-top: 6px; font-weight: 500; }
+
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .email-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .email-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .email-card:hover { border-color: #3a3d43; }
+  .email-card.has-opens { border-left: 3px solid var(--accent); }
+
+  .email-card-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+  }
+
+  .open-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    min-width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .open-badge.opened {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .open-badge.unopened {
+    background: var(--bg3);
+    color: var(--muted);
+  }
+
+  .email-meta { flex: 1; min-width: 0; }
+
+  .email-subject {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .email-sub {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .tag.opened { background: var(--accent-dim); color: var(--accent); }
+  .tag.unseen { background: var(--bg3); color: var(--muted); }
+
+  .email-card-detail {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    background: var(--bg3);
+  }
+  .email-card-detail.open { display: block; }
+
+  .opens-table { width: 100%; border-collapse: collapse; }
+  .opens-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .opens-table td {
+    font-size: 12px;
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+    vertical-align: top;
+  }
+  .opens-table td:first-child { font-family: 'IBM Plex Mono', monospace; color: var(--accent); }
+  .opens-table tr:last-child td { border-bottom: none; }
+
+  .pixel-url {
+    margin-top: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pixel-url code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--blue);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .no-opens {
+    color: var(--muted);
+    font-size: 12px;
+    padding: 10px 0;
+    font-style: italic;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .modal-overlay.visible { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    width: 520px;
+    max-width: 95vw;
+    transform: translateY(8px);
+    transition: transform 0.15s;
+  }
+  .modal-overlay.visible .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  input, textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+
+  textarea { min-height: 120px; }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  .hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+
+  .pixel-result {
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 16px;
+  }
+  .pixel-result .label { font-size: 11px; color: var(--accent); margin-bottom: 6px; font-family: 'IBM Plex Mono', monospace; }
+  .pixel-result code { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); word-break: break-all; }
+
+  .copy-btn {
+    margin-top: 8px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(34,211,160,0.3);
+    padding: 6px 14px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .copy-btn:hover { background: rgba(34,211,160,0.2); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .card-actions { display: flex; align-items: center; gap: 8px; }
+
+  .pixel-loading-text {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+
+  .pixel-error-msg {
+    font-size: 13px;
+    color: var(--red);
+    padding: 12px 0 4px;
+  }
+
+  .labels-divider {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 20px 0 14px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .labels-optional {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✉ email<span>tracker</span></div>
+  <div class="header-actions">
+    <button class="btn-ghost" onclick="loadEmails()">↻ Refresh</button>
+    <button class="btn-primary" id="btn-track-new" onclick="openModal()">+ Track New Email</button>
+    <button class="btn-ghost" onclick="logout()" style="color:var(--muted)">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Emails tracked</div>
+      <div class="stat-value" id="stat-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total opens</div>
+      <div class="stat-value" id="stat-opens">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Open rate</div>
+      <div class="stat-value" id="stat-rate">—</div>
+    </div>
+  </div>
+
+  <div class="section-title">Tracked Emails</div>
+  <div class="email-list" id="email-list">
+    <div class="empty-state">
+      <div class="big">📭</div>
+      <p>Loading…</p>
+    </div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h2>Track a new email</h2>
+
+    <div id="pixel-loading">
+      <div class="pixel-loading-text">Generating pixel…</div>
+    </div>
+
+    <div id="pixel-error" style="display:none">
+      <div class="pixel-error-msg">Could not generate pixel. Check your connection and retry.</div>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn-ghost" onclick="closeModal(); loadEmails()">Cancel</button>
+        <button class="btn-primary" onclick="generatePixel()">Retry</button>
+      </div>
+    </div>
+
+    <div id="pixel-ready" style="display:none">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Your pixel is ready — paste it into your email HTML:</p>
+      <div class="pixel-result">
+        <div class="label">▸ tracking pixel tag</div>
+        <code id="pixel-code"></code>
+      </div>
+      <button class="copy-btn" onclick="copyText(document.getElementById('pixel-code').textContent)">Copy pixel tag</button>
+
+      <div class="labels-divider">Add labels <span class="labels-optional">(optional)</span></div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Subject</label>
+        <input type="text" id="inp-subject" placeholder="Meeting follow-up">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Recipient email</label>
+        <input type="email" id="inp-recipient" placeholder="someone@example.com">
+      </div>
+      <div id="label-error" style="display:none;font-size:12px;color:var(--red);margin-top:8px">Failed to save labels. Please try again.</div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-done" onclick="doneSaving()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://track.mangacreativestudios.com';
+let allEmails = [];
+let _pendingTrackId = null;
+const isRealOpen = o => !o.viaProxy;
+
+// Auth helpers
+function getToken() { return localStorage.getItem('token'); }
+
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+}
+
+// Wrapper around fetch that adds Authorization header and handles 401
+async function authFetch(url, opts = {}) {
+  const token = getToken();
+  if (!token) { logout(); return null; }
+  const res = await fetch(url, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...opts.headers, 'Authorization': `Bearer ${token}` },
+  });
+  if (res.status === 401) { logout(); return null; }
+  return res;
+}
+
+// Guard: redirect to login if no token present
+if (!getToken()) { window.location.href = '/login'; }
+
+async function loadEmails() {
+  try {
+    const res = await authFetch(`${API}/api/emails`);
+    if (!res) return;
+    allEmails = await res.json();
+    renderEmails(allEmails);
+    renderStats(allEmails);
+  } catch(e) {
+    document.getElementById('email-list').innerHTML = `
+      <div class="empty-state">
+        <div class="big">⚠️</div>
+        <p>Cannot reach server at ${API}. Is it running?</p>
+      </div>`;
+  }
+}
+
+function renderStats(emails) {
+  const total = emails.length;
+  const opens = emails.reduce((s, e) => s + (e.realOpenCount || 0), 0);
+  const opened = emails.filter(e => e.realOpenCount > 0).length;
+  const rate = total ? Math.round((opened / total) * 100) : 0;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-opens').textContent = opens;
+  document.getElementById('stat-rate').textContent = total ? `${rate}%` : '—';
+}
+
+function renderEmails(emails) {
+  const el = document.getElementById('email-list');
+  if (!emails.length) {
+    el.innerHTML = `<div class="empty-state"><div class="big">📭</div><p>No tracked emails yet. Click "Track New Email" to start.</p></div>`;
+    return;
+  }
+  el.innerHTML = emails.map(e => emailCard(e)).join('');
+}
+
+function emailCard(e) {
+  const opened = e.realOpenCount > 0;
+  const cardClass = opened ? 'has-opens' : '';
+  const tagClass = opened ? 'opened' : 'unseen';
+  const tagLabel = opened ? '✓ opened' : '○ unseen';
+
+  const realOpens = (e.opens || []).filter(isRealOpen);
+  let opensHtml = '';
+  if (realOpens.length) {
+    opensHtml = `<table class="opens-table">
+      <thead><tr><th>#</th><th>Time</th></tr></thead>
+      <tbody>` + realOpens.map((o, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${formatTime(o.timestamp)}</td>
+        </tr>`).join('') +
+      `</tbody></table>`;
+  } else {
+    opensHtml = `<div class="no-opens">Not opened yet</div>`;
+  }
+
+  return `
+  <div class="email-card ${cardClass}" id="card-${e.trackId}">
+    <div class="email-card-header" onclick="toggleDetail('${e.trackId}')">
+      <div class="open-badge ${opened ? 'opened' : 'unopened'}">${e.realOpenCount ?? realOpens.length}</div>
+      <div class="email-meta">
+        <div class="email-subject">${esc(e.subject)}</div>
+        <div class="email-sub">
+          <span>To: ${esc(e.recipient || '—')}</span>
+          <span>Created: ${formatTime(e.createdAt)}</span>
+          ${e.locations && e.locations.length ? `<span>📍 ${e.locations.join(' · ')}</span>` : ''}
+        </div>
+      </div>
+      <div class="card-actions">
+        <span class="tag ${tagClass}">${tagLabel}</span>
+        <button class="btn-danger" onclick="event.stopPropagation(); deleteEmail('${e.trackId}')">delete</button>
+      </div>
+    </div>
+    <div class="email-card-detail" id="detail-${e.trackId}">
+      ${opensHtml}
+    </div>
+  </div>`;
+}
+
+function toggleDetail(id) {
+  const d = document.getElementById('detail-' + id);
+  d.classList.toggle('open');
+}
+
+async function deleteEmail(trackId) {
+  if (!confirm('Delete this tracked email and all its open data?')) return;
+  await authFetch(`${API}/api/emails/${trackId}`, { method: 'DELETE' });
+  loadEmails();
+}
+
+function openModal() {
+  _pendingTrackId = null;
+  document.getElementById('inp-subject').value = '';
+  document.getElementById('inp-recipient').value = '';
+  document.getElementById('label-error').style.display = 'none';
+  document.getElementById('btn-track-new').disabled = true;
+  showPixelState('loading');
+  document.getElementById('modal').classList.add('visible');
+  generatePixel();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('visible');
+  _pendingTrackId = null;
+  document.getElementById('btn-track-new').disabled = false;
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal')) { closeModal(); loadEmails(); }
+}
+
+function showPixelState(state) {
+  document.getElementById('pixel-loading').style.display = state === 'loading' ? '' : 'none';
+  document.getElementById('pixel-error').style.display  = state === 'error'   ? '' : 'none';
+  document.getElementById('pixel-ready').style.display  = state === 'ready'   ? '' : 'none';
+}
+
+async function generatePixel() {
+  showPixelState('loading');
+  try {
+    const res = await authFetch(`${API}/api/emails`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    if (!document.getElementById('modal').classList.contains('visible')) return;
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    _pendingTrackId = data.trackId;
+    const pixelTag = `<img src="${data.pixelUrl}" width="1" height="1" style="display:none" alt="">`;
+    document.getElementById('pixel-code').textContent = pixelTag;
+    showPixelState('ready');
+  } catch(e) {
+    if (!document.getElementById('modal').classList.contains('visible')) return;
+    showPixelState('error');
+  }
+}
+
+async function doneSaving() {
+  const subject = document.getElementById('inp-subject').value.trim();
+  const recipient = document.getElementById('inp-recipient').value.trim();
+
+  if (_pendingTrackId && (subject || recipient)) {
+    const btn = document.getElementById('btn-done');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    document.getElementById('label-error').style.display = 'none';
+    try {
+      const res = await authFetch(`${API}/api/emails/${_pendingTrackId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ subject, recipient })
+      });
+      if (!res.ok) throw new Error('Save failed');
+    } catch(e) {
+      document.getElementById('label-error').style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Done';
+      return;
+    }
+  }
+
+  closeModal();
+  loadEmails();
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = orig, 1800);
+  });
+}
+
+function formatTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadEmails();
+setInterval(loadEmails, 30000);
+</script>
+</body>
+</html>

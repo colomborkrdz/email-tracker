@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Tracker — Sign in</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #161719;
+    --bg3: #1e2023;
+    --border: #2a2d32;
+    --text: #e8e9eb;
+    --muted: #6b7280;
+    --accent: #22d3a0;
+    --accent-dim: rgba(34,211,160,0.12);
+    --red: #ef4444;
+    --green: #22d3a0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 32px;
+    width: 400px;
+    max-width: 95vw;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    margin-bottom: 28px;
+    text-align: center;
+  }
+  .logo span { color: var(--muted); }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .form-group { margin-bottom: 16px; }
+
+  label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    margin-top: 8px;
+    transition: background 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #0e0f11; }
+  .btn-primary:hover { background: #1fba8e; }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .message {
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .message.error { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .message.success { background: rgba(34,211,160,0.12); color: var(--green); border: 1px solid rgba(34,211,160,0.25); }
+  .message.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">✉ email<span>tracker</span></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('login')">Log in</button>
+    <button class="tab" onclick="showTab('signup')">Sign up</button>
+  </div>
+
+  <div id="msg" class="message"></div>
+
+  <!-- Login form -->
+  <div id="form-login">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" id="btn-login" onclick="doLogin()">Log in</button>
+  </div>
+
+  <!-- Signup form -->
+  <div id="form-signup" style="display:none">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="signup-password" placeholder="8+ characters" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" id="btn-signup" onclick="doSignup()">Create account</button>
+  </div>
+</div>
+
+<script>
+const API = 'https://track.mangacreativestudios.com';
+
+// Show verified banner if redirected from email verification
+const params = new URLSearchParams(location.search);
+if (params.get('verified') === '1') {
+  showMsg('Email verified! You can now log in.', 'success');
+}
+
+// If already logged in, go straight to the app
+if (localStorage.getItem('token')) {
+  window.location.href = '/app';
+}
+
+function showTab(tab) {
+  document.getElementById('form-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('form-signup').style.display = tab === 'signup' ? '' : 'none';
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
+  });
+  clearMsg();
+}
+
+function showMsg(text, type = 'error') {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = `message ${type} visible`;
+}
+
+function clearMsg() {
+  const el = document.getElementById('msg');
+  el.className = 'message';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('btn-login');
+  if (!email || !password) return showMsg('Email and password are required.');
+  btn.disabled = true; btn.textContent = 'Logging in…';
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) return showMsg(data.error || 'Login failed.');
+    localStorage.setItem('token', data.token);
+    window.location.href = '/app';
+  } catch {
+    showMsg('Cannot reach server. Try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Log in';
+  }
+}
+
+async function doSignup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const btn = document.getElementById('btn-signup');
+  if (!email || !password) return showMsg('Email and password are required.');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const res = await fetch(`${API}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) return showMsg(data.error || 'Signup failed.');
+    showMsg(data.message, 'success');
+    document.getElementById('signup-email').value = '';
+    document.getElementById('signup-password').value = '';
+  } catch {
+    showMsg('Cannot reach server. Try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create account';
+  }
+}
+
+// Submit on Enter key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('form-login').style.display !== 'none') doLogin();
+  else doSignup();
+});
+</script>
+</body>
+</html>

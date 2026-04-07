@@ -10,7 +10,21 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git diff:*)",
-      "Bash(gh issue:*)"
+      "Bash(gh issue:*)",
+      "Bash(open:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\('better-sqlite3'\\); require\\('bcryptjs'\\); require\\('jsonwebtoken'\\); require\\('nodemailer'\\); console.log\\('all deps OK'\\)\")",
+      "Bash(node -e \"const d = require\\('./lib/db'\\); console.log\\('db OK, tables:', d.db.prepare\\(\\\\\"SELECT name FROM sqlite_master WHERE type='table'\\\\\"\\).all\\(\\).map\\(r=>r.name\\).join\\(', '\\)\\)\")",
+      "Bash(JWT_SECRET=test-secret SEED_USER_EMAIL=test@example.com SEED_USER_PASSWORD=testpass123 node scripts/migrate.js)",
+      "Bash(node -e ':*)",
+      "Bash(JWT_SECRET=test-secret node server.js)",
+      "Bash(curl -s http://localhost:3000/pixel?id=test)",
+      "Bash(xxd)",
+      "Bash(curl -s 'http://localhost:3000/pixel?id=nonexistent' -o /tmp/pixel_test)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"test@example.com\",\"password\":\"password123\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@example.com\",\"password\":\"password123\"}')",
+      "Bash(kill %1)"
     ]
   }
 }
