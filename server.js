@@ -254,6 +254,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 403, { error: 'Please verify your email before logging in' });
     }
 
+    db.updateLastLogin.run(new Date().toISOString(), user.id);
     const token = signToken(user.id);
     return json(res, 200, { token });
   }
@@ -472,9 +473,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------------------
-  // ADMIN — delete user (temporary, remove after use)
+  // ADMIN — list users
   // -------------------------------------------------------------------------
-  if (pathname === '/api/admin/delete-user' && req.method === 'DELETE') {
+  if (pathname === '/api/admin/users' && req.method === 'GET') {
     const userId = requireAuth(req, res);
     if (!userId) return;
 
@@ -482,18 +483,71 @@ const server = http.createServer(async (req, res) => {
     const seedEmail = process.env.SEED_USER_EMAIL && process.env.SEED_USER_EMAIL.toLowerCase().trim();
     if (!caller || caller.email !== seedEmail) return json(res, 403, { error: 'Forbidden' });
 
+    const users = db.getAllUsers.all().map(u => ({
+      id: u.id,
+      email: u.email,
+      emailVerified: !!u.email_verified,
+      subscriptionStatus: u.subscription_status,
+      trialEndsAt: u.trial_ends_at,
+      createdAt: u.created_at,
+      lastLogin: u.last_login,
+      isSeed: u.email === seedEmail,
+    }));
+    return json(res, 200, users);
+  }
+
+  // -------------------------------------------------------------------------
+  // ADMIN — activate / deactivate user
+  // -------------------------------------------------------------------------
+  if (pathname.startsWith('/api/admin/users/') && req.method === 'PATCH') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    const caller = db.getUserById.get(userId);
+    const seedEmail = process.env.SEED_USER_EMAIL && process.env.SEED_USER_EMAIL.toLowerCase().trim();
+    if (!caller || caller.email !== seedEmail) return json(res, 403, { error: 'Forbidden' });
+
+    const targetId = pathname.split('/')[4];
+    if (!targetId) return json(res, 400, { error: 'User id required' });
+
     let body;
     try { body = await readBody(req); }
     catch { return json(res, 400, { error: 'Invalid JSON' }); }
 
-    const { email } = body;
-    if (!email) return json(res, 400, { error: 'email is required' });
+    const { action } = body;
+    let result;
+    if (action === 'activate') {
+      result = db.updateSubscriptionStatusById.run('active', targetId);
+    } else if (action === 'deactivate') {
+      result = db.updateSubscriptionStatusById.run('none', targetId);
+    } else {
+      return json(res, 400, { error: 'action must be activate or deactivate' });
+    }
 
-    const user = db.getUserByEmail.get(email.toLowerCase().trim());
-    if (!user) return json(res, 404, { error: 'User not found' });
+    if (result.changes === 0) return json(res, 404, { error: 'User not found' });
+    return json(res, 200, { ok: true });
+  }
 
-    db.db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
-    return json(res, 200, { ok: true, deleted: email });
+  // -------------------------------------------------------------------------
+  // ADMIN — delete user
+  // -------------------------------------------------------------------------
+  if (pathname.startsWith('/api/admin/users/') && req.method === 'DELETE') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    const caller = db.getUserById.get(userId);
+    const seedEmail = process.env.SEED_USER_EMAIL && process.env.SEED_USER_EMAIL.toLowerCase().trim();
+    if (!caller || caller.email !== seedEmail) return json(res, 403, { error: 'Forbidden' });
+
+    const targetId = pathname.split('/')[4];
+    if (!targetId) return json(res, 400, { error: 'User id required' });
+
+    const target = db.getUserById.get(targetId);
+    if (!target) return json(res, 404, { error: 'User not found' });
+    if (target.email === seedEmail) return json(res, 400, { error: 'Cannot delete the seed user' });
+
+    db.db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
+    return json(res, 200, { ok: true });
   }
 
   // -------------------------------------------------------------------------
@@ -522,6 +576,14 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/billing') {
     const file = path.join(__dirname, 'public', 'billing.html');
+    if (fs.existsSync(file)) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(fs.readFileSync(file));
+    }
+  }
+
+  if (pathname === '/admin') {
+    const file = path.join(__dirname, 'public', 'admin.html');
     if (fs.existsSync(file)) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       return res.end(fs.readFileSync(file));
