@@ -318,6 +318,10 @@ const server = http.createServer(async (req, res) => {
     const userId = requireAuth(req, res);
     if (!userId) return;
 
+    const caller = db.getUserById.get(userId);
+    const seedEmail = process.env.SEED_USER_EMAIL && process.env.SEED_USER_EMAIL.toLowerCase().trim();
+    if (!caller || caller.email !== seedEmail) return json(res, 403, { error: 'Forbidden' });
+
     let body;
     try { body = await readBody(req); }
     catch { return json(res, 400, { error: 'Invalid JSON' }); }
