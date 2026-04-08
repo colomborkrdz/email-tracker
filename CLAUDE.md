@@ -22,7 +22,8 @@ A self-hosted email open tracker — shows if an email was opened, from where, a
 email-tracker/
 ├── server.js          ← HTTP server, all routes, tracking logic
 ├── public/
-│   └── index.html     ← Full dashboard (HTML + JS in one file)
+│   ├── app.html       ← Dashboard (requires JWT, redirects to /login if no token)
+│   └── login.html     ← Login/signup page (public)
 ├── db/
 │   └── data.json      ← JSON file database (emails + opens)
 └── package.json
