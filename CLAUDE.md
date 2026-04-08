@@ -30,7 +30,9 @@ email-tracker/
 ├── public/
 │   ├── app.html       ← Dashboard (requires JWT + active subscription)
 │   ├── login.html     ← Login/signup page (public)
-│   └── billing.html   ← Subscription management page (public, JWT-gated client-side)
+│   ├── billing.html   ← Subscription management page (public, JWT-gated client-side)
+│   ├── admin.html     ← Admin dashboard (seed user only)
+│   └── nequi.html     ← Nequi payment page (public)
 ├── scripts/
 │   ├── migrate.js     ← One-time JSON → SQLite migration
 │   ├── verify-user.js ← Manually verify a user's email by address
@@ -41,7 +43,7 @@ email-tracker/
 ### SQLite Schema (users table)
 ```sql
 id, email, password_hash, email_verified, verification_token, created_at,
-stripe_customer_id, subscription_status, trial_ends_at
+stripe_customer_id, subscription_status, trial_ends_at, last_login
 ```
 `subscription_status` values: `none` | `trialing` | `active` | `past_due` | `canceled`
 
@@ -62,7 +64,10 @@ stripe_customer_id, subscription_status, trial_ends_at
 - `POST /api/billing/create-portal-session` → creates Stripe Customer Portal session (JWT required)
 - `GET /api/billing/status` → returns `subscription_status`, `trial_ends_at` (JWT required)
 - `POST /api/billing/webhook` → Stripe webhook; raw body, no JWT, signature-verified
-- `DELETE /api/admin/delete-user` → temporary admin route, seed user only (remove after use)
+- `GET /admin` → serves `public/admin.html` (public file; JS shows access denied for non-seed users)
+- `GET /api/admin/users` → all users list, seed user only
+- `PATCH /api/admin/users/:id` → activate or deactivate user, seed user only
+- `DELETE /api/admin/users/:id` → delete user, seed user only; self-delete blocked server-side
 - `GET /nequi` → public Nequi payment page (manual payment flow for Colombian users)
 
 ### How Tracking Works
@@ -103,6 +108,18 @@ The pixel route uses a **query parameter**, not a path segment:
 - Deployment takes ~60-90 seconds after push
 - Verify deploy worked by checking the pixel endpoint: `/pixel?id=test123` should return a blank page (not "Not found")
 
+### Security Patterns
+
+- **Never inject user-supplied values into `innerHTML` without escaping.** Always use the `esc()` helper pattern from `admin.html` for any page that renders user data (email addresses, names, or any field a user could have set at signup). Escape `&`, `<`, `>`, `"`, and `'`. The signup handler only validates `@` presence — it does not sanitize HTML. An unescaped email in `innerHTML` is a stored XSS vector.
+
+```js
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+```
+
 ### Gmail Tracking Notes
 - Gmail pre-fetches images via Google proxy — this shows as "Gmail Proxy, Google" in the dashboard
 - This is normal and expected — multiple proxy opens on the same email are Gmail, not the recipient
@@ -121,6 +138,7 @@ The pixel route uses a **query parameter**, not a path segment:
 - ✅ Multi-user auth + SQLite migration complete (Phase 1)
 - ✅ Email verification flow tested and working (Resend)
 - ✅ Stripe billing implemented (Phase 2) — pending production wiring
+- ✅ Admin dashboard complete (Phase 3) — user list, activate/deactivate/delete, stats
 
 ### Next Up
 - [ ] Configure Stripe webhook in production (register endpoint in Stripe Dashboard)
@@ -158,6 +176,9 @@ The pixel route uses a **query parameter**, not a path segment:
 | Apr 2026 | 7-day trial for existing users on Phase 2 migration | Users who signed up before billing existed get `subscription_status = 'trialing'` + `trial_ends_at = now + 7d` via idempotent backfill in `lib/db.js`. Prevents locking out existing accounts on first deploy. |
 | Apr 2026 | Stripe left dormant, gated by `STRIPE_ENABLED` env var | Stripe doesn't support Colombian entities directly; will activate when US LLC is established. All subscription enforcement is skipped until `STRIPE_ENABLED=true` is set. |
 | Apr 2026 | Nequi QR page for manual payments | Interim payment solution for Colombian users while Stripe activation is pending. Manual confirmation flow: user pays → emails confirmation → account activated manually via `scripts/verify-user.js` or admin route. |
+| Apr 2026 | `esc()` helper for `innerHTML` in admin.html | User-supplied values (email) must never be injected raw into innerHTML — always escape `&`, `<`, `>`, `"`, `'` before rendering. Signup only validates `@` presence; a crafted email is a stored XSS vector without escaping. |
+| Apr 2026 | `isSeed` flag on admin user list | Server sets `isSeed: true` on the seed user's row so the frontend can hide the Delete button. Avoids confusing UX where the seed user sees a Delete button that the server would block anyway. |
+| Apr 2026 | `last_login` tracked on every successful login | Needed for admin dashboard visibility. Existing users have `NULL`; displays as "Never" in the admin table. Written in the `POST /api/auth/login` handler after password verification succeeds. |
 
 ---
 
@@ -180,4 +201,4 @@ The pixel route uses a **query parameter**, not a path segment:
 - [ ] Activate Customer Portal in Stripe Dashboard
 - [ ] Switch BASE_URL to track.mangacreativestudios.com once DNS propagates
 - [ ] Email open notifications (webhook or email alert on open)
-- [ ] Admin dashboard to manage users
+- [x] Admin dashboard to manage users ✅ Apr 8 2026
