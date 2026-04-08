@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Tracker — Billing</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #161719;
+    --bg3: #1e2023;
+    --border: #2a2d32;
+    --text: #e8e9eb;
+    --muted: #6b7280;
+    --accent: #22d3a0;
+    --accent-dim: rgba(34,211,160,0.12);
+    --warn: #f59e0b;
+    --red: #ef4444;
+    --blue: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 500; }
+  .logo span { color: var(--accent); }
+
+  .header-actions { display: flex; gap: 10px; }
+
+  .btn-ghost {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    font-family: inherit; transition: border-color .15s;
+  }
+  .btn-ghost:hover { border-color: var(--muted); }
+
+  .btn-primary {
+    background: var(--accent); border: none; color: #0e0f11;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    font-family: inherit; font-weight: 500; transition: opacity .15s;
+  }
+  .btn-primary:hover { opacity: .85; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .card h1 { font-size: 22px; font-weight: 500; margin-bottom: 8px; }
+  .card .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; line-height: 1.5; }
+
+  .price {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 40px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .price-period { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+  .banner {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .banner-success { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
+  .banner-warn { background: rgba(245,158,11,0.1); border: 1px solid var(--warn); color: var(--warn); }
+  .banner-error { background: rgba(239,68,68,0.1); border: 1px solid var(--red); color: var(--red); }
+  .banner-info { background: rgba(96,165,250,0.1); border: 1px solid var(--blue); color: var(--blue); }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .action-row { display: flex; flex-direction: column; gap: 10px; }
+
+  #loading { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✉ email<span>tracker</span></div>
+  <div class="header-actions">
+    <button class="btn-ghost" onclick="window.location.href='/app'">Dashboard</button>
+    <button class="btn-ghost" onclick="logout()" style="color:var(--muted)">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div id="loading">Loading…</div>
+    <div id="content" style="display:none"></div>
+  </div>
+</main>
+
+<script>
+const API = window.location.origin;
+
+function getToken() { return localStorage.getItem('token'); }
+function logout() { localStorage.removeItem('token'); window.location.href = '/login'; }
+
+if (!getToken()) { window.location.href = '/login'; }
+
+const params = new URLSearchParams(window.location.search);
+const isSuccess = params.has('success');
+const isCanceled = params.has('canceled');
+
+async function fetchStatus(token) {
+  const res = await fetch(`${API}/api/billing/status`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (res.status === 401) { logout(); return null; }
+  if (res.ok) return res.json();
+  return null;
+}
+
+async function init() {
+  const token = getToken();
+  let status = null;
+
+  try { status = await fetchStatus(token); } catch {}
+
+  // On checkout success, poll until active (up to 5 attempts × 1s)
+  if (isSuccess && status?.subscription_status !== 'active') {
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const s = await fetchStatus(token);
+        if (!s) return; // 401 — already logged out
+        status = s;
+        if (s.subscription_status === 'active') break;
+      } catch {}
+    }
+  }
+
+  // If active after polling, go straight to dashboard
+  if (isSuccess && status?.subscription_status === 'active') {
+    window.location.href = '/app';
+    return;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  const content = document.getElementById('content');
+  content.style.display = 'block';
+  content.innerHTML = renderContent(status);
+}
+
+function renderContent(status) {
+  const sub = status?.subscription_status;
+  const trialEndsAt = status?.trial_ends_at ? new Date(status.trial_ends_at) : null;
+  const trialActive = sub === 'trialing' && trialEndsAt && trialEndsAt > new Date();
+
+  let html = '';
+
+  // ?success=1 but still not active after polling — payment processing slowly
+  if (isSuccess && sub !== 'active') {
+    html += `<div class="banner banner-warn">Your payment was received but your subscription is still activating. Wait a moment and check again.</div>`;
+    html += `<div class="action-row" style="margin-top:16px">
+      <button class="btn-ghost" onclick="init()">Check again</button>
+      <button class="btn-ghost" onclick="window.location.href='/app'">Go to dashboard</button>
+    </div>`;
+    return html;
+  }
+
+  // Banners
+  if (isCanceled) {
+    html += `<div class="banner banner-warn">Checkout canceled. You have not been charged.</div>`;
+  }
+  if (sub === 'past_due') {
+    html += `<div class="banner banner-error">Your payment failed. Please update your payment method to keep access.</div>`;
+  }
+  if (sub === 'canceled') {
+    html += `<div class="banner banner-warn">Your subscription has been canceled. Subscribe again to restore access.</div>`;
+  }
+  if (trialActive) {
+    const days = Math.ceil((trialEndsAt - new Date()) / (1000 * 60 * 60 * 24));
+    html += `<div class="banner banner-info">Your free trial ends in ${days} day${days === 1 ? '' : 's'} (${trialEndsAt.toLocaleDateString()}).</div>`;
+  }
+
+  // Active subscription
+  if (sub === 'active') {
+    html += `
+      <h1>Subscription active</h1>
+      <p class="subtitle">You have full access to Email Tracker.</p>
+      <hr class="divider">
+      <div class="action-row">
+        <button class="btn-ghost" onclick="openPortal()">Manage billing &amp; cancel</button>
+        <button class="btn-primary" onclick="window.location.href='/app'">Go to dashboard</button>
+      </div>`;
+    return html;
+  }
+
+  // Trial or no subscription or canceled — show subscribe CTA
+  html += `
+    <h1>Subscribe to Email Tracker</h1>
+    <p class="subtitle">Track email opens, locations, and engagement — for every email you send.</p>
+    <div class="price">$5</div>
+    <div class="price-period">per month · cancel anytime</div>
+    <div class="action-row">
+      <button class="btn-primary" id="btn-subscribe" onclick="startCheckout()">Subscribe with Stripe</button>`;
+  if (status?.stripe_customer_id) {
+    html += `<button class="btn-ghost" onclick="openPortal()">Manage existing subscription</button>`;
+  }
+  html += `</div>`;
+
+  return html;
+}
+
+async function startCheckout() {
+  const btn = document.getElementById('btn-subscribe');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting…'; }
+  try {
+    const res = await fetch(`${API}/api/billing/create-checkout-session`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+    });
+    if (res.status === 401) { logout(); return; }
+    const { url, error } = await res.json();
+    if (url) { window.location.href = url; }
+    else { alert(error || 'Could not start checkout. Please try again.'); if (btn) { btn.disabled = false; btn.textContent = 'Subscribe with Stripe'; } }
+  } catch {
+    alert('Could not start checkout. Please try again.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Subscribe with Stripe'; }
+  }
+}
+
+async function openPortal() {
+  try {
+    const res = await fetch(`${API}/api/billing/create-portal-session`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+    });
+    if (res.status === 401) { logout(); return; }
+    const { url, error } = await res.json();
+    if (url) { window.location.href = url; }
+    else { alert(error || 'Could not open billing portal.'); }
+  } catch {
+    alert('Could not open billing portal.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

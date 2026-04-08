@@ -9,6 +9,8 @@ const { isAutomatedScanner } = require('./lib/scanner');
 const { geoLookup } = require('./lib/geo');
 const { hashPassword, comparePassword, signToken, verifyToken } = require('./lib/auth');
 const { sendVerificationEmail } = require('./lib/email');
+const Stripe = require('stripe');
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const BASE_URL = process.env.BASE_URL || 'https://track.mangacreativestudios.com';
@@ -33,6 +35,16 @@ function readBody(req) {
   });
 }
 
+// For Stripe webhooks only — returns raw Buffer, no parsing.
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 // Returns userId if the request carries a valid JWT, otherwise sends 401 and returns null.
 function requireAuth(req, res) {
   const header = req.headers['authorization'] || '';
@@ -45,6 +57,20 @@ function requireAuth(req, res) {
     json(res, 401, { error: 'Unauthorized' });
     return null;
   }
+}
+
+// Returns true if the authenticated user has an active subscription (or is seed/trialing).
+// Sends 402 and returns false if not.
+function requireSubscription(res, userId) {
+  const user = db.getUserById.get(userId);
+  if (!user) { json(res, 401, { error: 'Unauthorized' }); return false; }
+  const isSeedUser = process.env.SEED_USER_EMAIL &&
+    user.email === process.env.SEED_USER_EMAIL.toLowerCase().trim();
+  if (isSeedUser) return true;
+  if (user.subscription_status === 'active') return true;
+  if (user.subscription_status === 'trialing' && user.trial_ends_at && new Date(user.trial_ends_at) > new Date()) return true;
+  json(res, 402, { error: 'Subscription required' });
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +137,60 @@ const server = http.createServer(async (req, res) => {
       'Pragma': 'no-cache',
     });
     return res.end(PIXEL);
+  }
+
+  // -------------------------------------------------------------------------
+  // BILLING — Stripe webhook (raw body, no JWT, no readBody)
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/billing/webhook' && req.method === 'POST') {
+    if (!stripe) { res.writeHead(503); return res.end('Billing not configured'); }
+
+    const rawBody = await readRawBody(req);
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (e) {
+      console.error('[stripe] Webhook signature verification failed:', e.message);
+      res.writeHead(400); return res.end('Webhook signature verification failed');
+    }
+
+    const stripeStatusMap = { active: 'active', past_due: 'past_due', canceled: 'canceled', unpaid: 'past_due' };
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const customerId = session.customer;
+      const result = db.updateSubscriptionStatus.run('active', customerId);
+      if (result.changes === 0) {
+        // Fallback: stripe_customer_id not in DB (rare race). Try matching by email.
+        const email = session.customer_details?.email || session.customer_email;
+        if (email) {
+          const user = db.getUserByEmail.get(email.toLowerCase().trim());
+          if (user) {
+            db.updateStripeCustomer.run({ stripeCustomerId: customerId, subscriptionStatus: 'active', id: user.id });
+            console.warn(`[stripe] checkout.session.completed: linked ${customerId} to ${email} via email fallback`);
+          } else {
+            console.error(`[stripe] checkout.session.completed: no user for customer ${customerId} or email ${email}`);
+          }
+        } else {
+          console.error(`[stripe] checkout.session.completed: no user for customer ${customerId}, no email fallback`);
+        }
+      } else {
+        console.log('[stripe] checkout.session.completed — customer:', customerId);
+      }
+    } else if (event.type === 'customer.subscription.updated') {
+      const sub = event.data.object;
+      const status = stripeStatusMap[sub.status] || 'none';
+      db.updateSubscriptionStatus.run(status, sub.customer);
+      console.log(`[stripe] subscription.updated — customer: ${sub.customer} status: ${status}`);
+    } else if (event.type === 'customer.subscription.deleted') {
+      db.updateSubscriptionStatus.run('canceled', event.data.object.customer);
+      console.log('[stripe] subscription.deleted — customer:', event.data.object.customer);
+    } else if (event.type === 'invoice.payment_failed') {
+      db.updateSubscriptionStatus.run('past_due', event.data.object.customer);
+      console.log('[stripe] invoice.payment_failed — customer:', event.data.object.customer);
+    }
+
+    res.writeHead(200); return res.end('ok');
   }
 
   // -------------------------------------------------------------------------
@@ -198,6 +278,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/emails' && req.method === 'POST') {
     const userId = requireAuth(req, res);
     if (!userId) return;
+    if (!requireSubscription(res, userId)) return;
 
     let body;
     try { body = await readBody(req); }
@@ -222,6 +303,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/emails' && req.method === 'GET') {
     const userId = requireAuth(req, res);
     if (!userId) return;
+    if (!requireSubscription(res, userId)) return;
 
     const emails = db.getEmailsByUser.all(userId);
     const result = emails.map(email => {
@@ -265,6 +347,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/emails/') && req.method === 'PATCH') {
     const userId = requireAuth(req, res);
     if (!userId) return;
+    if (!requireSubscription(res, userId)) return;
 
     const parts = pathname.split('/');
     const trackId = parts[3];
@@ -299,6 +382,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/emails/') && req.method === 'DELETE') {
     const userId = requireAuth(req, res);
     if (!userId) return;
+    if (!requireSubscription(res, userId)) return;
 
     const parts = pathname.split('/');
     const trackId = parts[3];
@@ -309,6 +393,81 @@ const server = http.createServer(async (req, res) => {
 
     db.deleteEmail.run(trackId, userId);
     return json(res, 200, { ok: true });
+  }
+
+  // -------------------------------------------------------------------------
+  // BILLING — create Stripe Checkout session
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/billing/create-checkout-session' && req.method === 'POST') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    if (!stripe) return json(res, 503, { error: 'Billing not configured' });
+
+    const user = db.getUserById.get(userId);
+    if (!user) return json(res, 401, { error: 'Unauthorized' });
+
+    try {
+      let stripeCustomerId = user.stripe_customer_id;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({ email: user.email });
+        stripeCustomerId = customer.id;
+        db.updateStripeCustomer.run({ stripeCustomerId, subscriptionStatus: user.subscription_status, id: userId });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: stripeCustomerId,
+        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+        success_url: `${BASE_URL}/billing?success=1`,
+        cancel_url: `${BASE_URL}/billing?canceled=1`,
+      });
+
+      return json(res, 200, { url: session.url });
+    } catch (e) {
+      console.error('[stripe] create-checkout-session error:', e.message);
+      return json(res, 502, { error: 'Could not create checkout session. Please try again.' });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // BILLING — create Stripe Customer Portal session
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/billing/create-portal-session' && req.method === 'POST') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+    if (!stripe) return json(res, 503, { error: 'Billing not configured' });
+
+    const user = db.getUserById.get(userId);
+    if (!user) return json(res, 401, { error: 'Unauthorized' });
+    if (!user.stripe_customer_id) {
+      return json(res, 400, { error: 'No billing account found. Subscribe first.' });
+    }
+
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripe_customer_id,
+        return_url: `${BASE_URL}/billing`,
+      });
+      return json(res, 200, { url: session.url });
+    } catch (e) {
+      console.error('[stripe] create-portal-session error:', e.message);
+      return json(res, 502, { error: 'Could not open billing portal. Please try again.' });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // BILLING — get subscription status
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/billing/status' && req.method === 'GET') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    const user = db.getUserById.get(userId);
+    return json(res, 200, {
+      subscription_status: user.subscription_status,
+      stripe_customer_id: user.stripe_customer_id,
+      trial_ends_at: user.trial_ends_at,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -354,6 +513,14 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/login') {
     const file = path.join(__dirname, 'public', 'login.html');
+    if (fs.existsSync(file)) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(fs.readFileSync(file));
+    }
+  }
+
+  if (pathname === '/billing') {
+    const file = path.join(__dirname, 'public', 'billing.html');
     if (fs.existsSync(file)) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       return res.end(fs.readFileSync(file));

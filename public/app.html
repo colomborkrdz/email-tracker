@@ -372,6 +372,7 @@
   <div class="header-actions">
     <button class="btn-ghost" onclick="loadEmails()">↻ Refresh</button>
     <button class="btn-primary" id="btn-track-new" onclick="openModal()">+ Track New Email</button>
+    <button class="btn-ghost" onclick="window.location.href='/billing'" style="color:var(--muted)">Billing</button>
     <button class="btn-ghost" onclick="logout()" style="color:var(--muted)">Sign out</button>
   </div>
 </header>
@@ -458,7 +459,7 @@ function logout() {
   window.location.href = '/login';
 }
 
-// Wrapper around fetch that adds Authorization header and handles 401
+// Wrapper around fetch that adds Authorization header and handles 401/402
 async function authFetch(url, opts = {}) {
   const token = getToken();
   if (!token) { logout(); return null; }
@@ -467,11 +468,31 @@ async function authFetch(url, opts = {}) {
     headers: { 'Content-Type': 'application/json', ...opts.headers, 'Authorization': `Bearer ${token}` },
   });
   if (res.status === 401) { logout(); return null; }
+  if (res.status === 402) { window.location.href = '/billing'; return null; }
   return res;
 }
 
 // Guard: redirect to login if no token present
 if (!getToken()) { window.location.href = '/login'; }
+
+// Guard: redirect to billing if no active subscription
+(async () => {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API}/api/billing/status`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (res.status === 401) { logout(); return; }
+    if (res.ok) {
+      const { subscription_status, trial_ends_at } = await res.json();
+      const trialing = subscription_status === 'trialing' && trial_ends_at && new Date(trial_ends_at) > new Date();
+      if (subscription_status !== 'active' && !trialing) {
+        window.location.href = '/billing';
+      }
+    }
+  } catch {}
+})();
 
 async function loadEmails() {
   try {

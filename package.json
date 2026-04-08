@@ -13,6 +13,6 @@
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.6.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.13"
+    "stripe": "^22.0.1"
   }
 }
