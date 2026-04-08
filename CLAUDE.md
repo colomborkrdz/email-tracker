@@ -30,7 +30,7 @@ email-tracker/
 ```
 
 ### Key Routes
-- `GET /` → serves dashboard (public/index.html)
+- `GET /` → serves dashboard (public/app.html)
 - `GET /pixel?id=TRACK_ID` → logs open, returns 1x1 GIF pixel ⚠️ query param, NOT path segment
 - `POST /api/emails` → creates tracked email, returns pixelUrl
 - `GET /api/emails` → returns all emails with open counts + locations
@@ -50,13 +50,13 @@ email-tracker/
 ### ⚠️ URL Configuration — TWO places to update
 When changing the base URL (e.g. ngrok → Railway), ALWAYS update BOTH:
 1. `server.js` — `const NGROK_URL = '...'` (used in API responses)
-2. `public/index.html` — `const API = '...'` (used by dashboard JS)
+2. `public/app.html` — `const API = '...'` (used by dashboard JS)
 
 Missing either one causes the pixel tag to show the wrong URL.
 
 **Verification command before deploying:**
 ```bash
-grep -n "ngrok\|localhost:3000" ~/email-tracker/server.js ~/email-tracker/public/index.html
+grep -n "ngrok\|localhost:3000" ~/email-tracker/server.js ~/email-tracker/public/app.html
 ```
 Should return zero results when properly configured for production.
 
@@ -112,3 +112,22 @@ The pixel route uses a **query parameter**, not a path segment:
 | Mar 2026 | Use vanilla http module instead of Express | Simplicity, no dependencies |
 | Mar 2026 | JSON file as DB | Fast to build, sufficient for MVP |
 | Mar 2026 | Host on Railway | Simple git-push deploys, free tier available |
+
+---
+
+## Roadmap
+
+### Immediate
+- [ ] Test new user signup + email verification flow via Resend
+- [x] Test open tracking end to end with new auth system ✅ Apr 7 2026
+- [x] Fix app.html reference in CLAUDE.md ✅ Apr 7 2026
+
+### Phase 2 — Stripe Billing
+- [ ] Add Stripe subscription at $5/month
+- [ ] Gate dashboard access behind active subscription
+- [ ] Add billing management page
+
+### Phase 3 — Polish
+- [ ] Switch BASE_URL to track.mangacreativestudios.com once DNS propagates
+- [ ] Email open notifications (webhook or email alert on open)
+- [ ] Admin dashboard to manage users
