@@ -82,19 +82,19 @@ The pixel route uses a **query parameter**, not a path segment:
 
 ---
 
-## Current Status (as of March 24, 2026)
+## Current Status (as of April 8, 2026)
 
 - ✅ Railway deployment live and working
 - ✅ Pixel tracking working (opens logged with location + timestamp)
 - ✅ Dashboard showing correct Railway URLs
 - ✅ Google proxy detection working
 - ✅ Tested end-to-end with real email to boti82@gmail.com
+- ✅ Multi-user auth + SQLite migration complete (Phase 1)
+- ✅ Email verification flow tested and working (Resend)
 
 ### Next Up
-- [ ] Test open tracking from recipient's side (confirm non-proxy open logs correctly)
 - [ ] Add email open notifications (webhook or email alert when recipient opens)
-- [ ] Optional: custom domain via Railway → Settings → Networking → Custom Domain
-- [ ] Optional: migrate from JSON file DB to SQLite for reliability
+- [ ] Phase 2: Stripe billing
 
 ---
 
@@ -102,6 +102,8 @@ The pixel route uses a **query parameter**, not a path segment:
 
 - JSON file DB (`data.json`) is ephemeral on Railway — if the container restarts, data resets. For now acceptable for testing; migrate to SQLite or Railway volume for persistence.
 - No authentication on dashboard — anyone with the URL can see all tracked emails. Fine for solo use, needs auth before sharing.
+- **`railway run` cannot access Railway Volumes** — the CLI runs in a local context without volume mounts. Use API routes or Railway's shell (`railway shell`) for any DB operations that need to touch the SQLite file.
+- **Resend domain verification is separate from Railway custom domain DNS** — both require their own GoDaddy DNS records. Adding Railway's CNAME does not verify the Resend sending domain; add Resend's SPF/DKIM/DMARC records independently.
 
 ---
 
@@ -112,13 +114,16 @@ The pixel route uses a **query parameter**, not a path segment:
 | Mar 2026 | Use vanilla http module instead of Express | Simplicity, no dependencies |
 | Mar 2026 | JSON file as DB | Fast to build, sufficient for MVP |
 | Mar 2026 | Host on Railway | Simple git-push deploys, free tier available |
+| Apr 2026 | Seed user upserted (not just inserted) on every startup | Hash drift: password_hash in DB becomes stale after `SEED_USER_PASSWORD` env var changes, causing login failures on redeployment. Upsert re-hashes on every boot. |
+| Apr 2026 | Admin utility routes scoped to seed user only | Any authenticated user could call admin routes otherwise. Seed user check (`caller.email === SEED_USER_EMAIL`) is the lightweight guard for temporary utility endpoints. Remove routes after use. |
+| Apr 2026 | Use Resend HTTP API directly (fetch) instead of nodemailer | Removes nodemailer dependency; Resend's REST API works with Node's built-in fetch. `SMTP_PASS` holds the Resend API key. |
 
 ---
 
 ## Roadmap
 
 ### Immediate
-- [ ] Test new user signup + email verification flow via Resend
+- [x] Test new user signup + email verification flow via Resend ✅ Apr 8 2026
 - [x] Test open tracking end to end with new auth system ✅ Apr 7 2026
 - [x] Fix app.html reference in CLAUDE.md ✅ Apr 7 2026
 
