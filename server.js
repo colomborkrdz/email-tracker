@@ -312,6 +312,27 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------------------
+  // ADMIN — delete user (temporary, remove after use)
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/admin/delete-user' && req.method === 'DELETE') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    let body;
+    try { body = await readBody(req); }
+    catch { return json(res, 400, { error: 'Invalid JSON' }); }
+
+    const { email } = body;
+    if (!email) return json(res, 400, { error: 'email is required' });
+
+    const user = db.getUserByEmail.get(email.toLowerCase().trim());
+    if (!user) return json(res, 404, { error: 'User not found' });
+
+    db.db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
+    return json(res, 200, { ok: true, deleted: email });
+  }
+
+  // -------------------------------------------------------------------------
   // Static files
   // -------------------------------------------------------------------------
   if (pathname === '/' || pathname === '/index.html') {
