@@ -63,6 +63,7 @@ stripe_customer_id, subscription_status, trial_ends_at
 - `GET /api/billing/status` → returns `subscription_status`, `trial_ends_at` (JWT required)
 - `POST /api/billing/webhook` → Stripe webhook; raw body, no JWT, signature-verified
 - `DELETE /api/admin/delete-user` → temporary admin route, seed user only (remove after use)
+- `GET /nequi` → public Nequi payment page (manual payment flow for Colombian users)
 
 ### How Tracking Works
 1. User creates a tracked email via dashboard → server generates a `trackId` (UUID)
@@ -137,6 +138,7 @@ The pixel route uses a **query parameter**, not a path segment:
 - **Resend domain verification is separate from Railway custom domain DNS** — both require their own GoDaddy DNS records. Adding Railway's CNAME does not verify the Resend sending domain; add Resend's SPF/DKIM/DMARC records independently.
 - **Webhook race on `checkout.session.completed`** — mitigated with email fallback lookup, but not fully eliminated. If `stripe_customer_id` isn't in the DB when the webhook arrives (server crash between customer creation and DB write), the fallback tries to match by `session.customer_details.email`. Monitor logs after first real payment for `[stripe] checkout.session.completed: no user found` errors.
 - **Stripe Customer Portal must be activated manually** — `create-portal-session` returns a Stripe error until the Customer Portal is configured in Stripe Dashboard → Settings → Billing → Customer Portal. Easy to forget during setup.
+- **Subscription gating is currently disabled** — `STRIPE_ENABLED` is not set, so `requireSubscription` passes all authenticated users through. Set `STRIPE_ENABLED=true` in Railway once Stripe is fully configured to enforce the paywall.
 
 ---
 
@@ -154,6 +156,8 @@ The pixel route uses a **query parameter**, not a path segment:
 | Apr 2026 | Webhook endpoint reads raw Buffer, never calls `readBody()` | Stripe HMAC signature verification requires exact raw bytes. Any string encoding or JSON parsing before `constructEvent()` breaks the signature and silently drops all webhook events. |
 | Apr 2026 | Seed user bypasses subscription gate | Same pattern as email verification bypass. Prevents lockout during development. Both bypasses check `user.email === SEED_USER_EMAIL`; remove before opening to the public or replace with an `is_admin` flag. |
 | Apr 2026 | 7-day trial for existing users on Phase 2 migration | Users who signed up before billing existed get `subscription_status = 'trialing'` + `trial_ends_at = now + 7d` via idempotent backfill in `lib/db.js`. Prevents locking out existing accounts on first deploy. |
+| Apr 2026 | Stripe left dormant, gated by `STRIPE_ENABLED` env var | Stripe doesn't support Colombian entities directly; will activate when US LLC is established. All subscription enforcement is skipped until `STRIPE_ENABLED=true` is set. |
+| Apr 2026 | Nequi QR page for manual payments | Interim payment solution for Colombian users while Stripe activation is pending. Manual confirmation flow: user pays → emails confirmation → account activated manually via `scripts/verify-user.js` or admin route. |
 
 ---
 
@@ -168,6 +172,8 @@ The pixel route uses a **query parameter**, not a path segment:
 - [x] Add Stripe subscription at $5/month ✅ Apr 8 2026
 - [x] Gate dashboard access behind active subscription ✅ Apr 8 2026
 - [x] Add billing management page ✅ Apr 8 2026
+
+> **Stripe is built but dormant.** Activation requires: US LLC, Stripe account, then set these Railway env vars: `STRIPE_ENABLED=true`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`. Also register `POST /api/billing/webhook` in the Stripe Dashboard and activate the Customer Portal (Settings → Billing → Customer Portal).
 
 ### Phase 3 — Polish
 - [ ] Configure Stripe webhook in production + test real $5 payment end to end
