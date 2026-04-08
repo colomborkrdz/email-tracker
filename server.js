@@ -62,6 +62,7 @@ function requireAuth(req, res) {
 // Returns true if the authenticated user has an active subscription (or is seed/trialing).
 // Sends 402 and returns false if not.
 function requireSubscription(res, userId) {
+  if (process.env.STRIPE_ENABLED !== 'true') return true;
   const user = db.getUserById.get(userId);
   if (!user) { json(res, 401, { error: 'Unauthorized' }); return false; }
   const isSeedUser = process.env.SEED_USER_EMAIL &&
@@ -521,6 +522,14 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/billing') {
     const file = path.join(__dirname, 'public', 'billing.html');
+    if (fs.existsSync(file)) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(fs.readFileSync(file));
+    }
+  }
+
+  if (pathname === '/nequi') {
+    const file = path.join(__dirname, 'public', 'nequi.html');
     if (fs.existsSync(file)) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       return res.end(fs.readFileSync(file));

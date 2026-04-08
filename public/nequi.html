@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Tracker — Upgrade to Pro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #161719;
+    --bg3: #1e2023;
+    --border: #2a2d32;
+    --text: #e8e9eb;
+    --muted: #6b7280;
+    --accent: #22d3a0;
+    --accent-dim: rgba(34,211,160,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 500; }
+  .logo span { color: var(--accent); }
+
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .card h1 { font-size: 22px; font-weight: 500; margin-bottom: 8px; }
+
+  .price {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 40px;
+    font-weight: 500;
+    color: var(--accent);
+    margin: 20px 0 4px;
+  }
+  .price-period { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  .qr-wrapper {
+    background: #fff;
+    border-radius: 10px;
+    display: inline-flex;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  #nequi-qr {
+    width: 200px;
+    height: 200px;
+    display: block;
+  }
+
+  .nequi-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .instructions {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .instructions strong { color: var(--text); }
+
+  .note {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--accent);
+    line-height: 1.5;
+  }
+
+  .note a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✉ email<span>tracker</span></div>
+</header>
+
+<main>
+  <div class="card">
+    <h1>Upgrade to Email Tracker Pro</h1>
+
+    <div class="price">$5 USD</div>
+    <div class="price-period">per month</div>
+
+    <div class="qr-wrapper">
+      <img id="nequi-qr" src="/nequi-qr.png" alt="Nequi QR code">
+    </div>
+
+    <div class="nequi-number">3015611462</div>
+
+    <hr class="divider">
+
+    <p class="instructions">
+      Scan the QR code or send your payment to <strong>3015611462</strong> on Nequi.<br>
+      Once confirmed, your account will be activated within <strong>24 hours</strong>.
+    </p>
+
+    <br>
+
+    <div class="note">
+      After paying, email <a href="mailto:andres@mangacreativestudios.com">andres@mangacreativestudios.com</a> with your payment confirmation.
+    </div>
+  </div>
+</main>
+
+</body>
+</html>
