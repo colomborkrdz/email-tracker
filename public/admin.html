@@ -277,8 +277,11 @@ async function load() {
 function render(users) {
   // Stats
   const total = users.length;
-  const active = users.filter(u => u.subscriptionStatus === 'active').length;
-  const trialing = users.filter(u => u.subscriptionStatus === 'trialing').length;
+  const active = users.filter(u =>
+    u.subscriptionStatus === 'active' ||
+    (u.subscriptionStatus === 'trialing' && u.trialEndsAt && new Date(u.trialEndsAt) > new Date())
+  ).length;
+  const trialing = users.filter(u => u.subscriptionStatus === 'trialing' && u.trialEndsAt && new Date(u.trialEndsAt) > new Date()).length;
   const unverified = users.filter(u => !u.emailVerified).length;
 
   document.getElementById('stats').innerHTML = `
