@@ -8,7 +8,7 @@
 
 A self-hosted email open tracker — shows if an email was opened, from where, and how many times. Built as an alternative to Mixpanel/Superhuman tracking.
 
-**Live URL:** https://email-tracker-production-b00f.up.railway.app  
+**Live URL:** https://track.mangacreativestudios.com  
 **GitHub:** https://github.com/colomborkrdz/email-tracker  
 **Stack:** Node.js (vanilla http module), JSON file database, vanilla HTML/JS dashboard  
 **Hosting:** Railway (auto-deploys from GitHub main branch)  
@@ -68,6 +68,7 @@ stripe_customer_id, subscription_status, trial_ends_at, last_login
 - `GET /api/admin/users` → all users list, seed user only
 - `PATCH /api/admin/users/:id` → activate or deactivate user, seed user only
 - `DELETE /api/admin/users/:id` → delete user, seed user only; self-delete blocked server-side
+- `DELETE /api/admin/delete-user` → delete user by email body `{ email }`, seed user only; self-delete blocked
 - `GET /nequi` → public Nequi payment page (manual payment flow for Colombian users)
 
 ### How Tracking Works
@@ -157,6 +158,7 @@ function esc(s) {
 - **Webhook race on `checkout.session.completed`** — mitigated with email fallback lookup, but not fully eliminated. If `stripe_customer_id` isn't in the DB when the webhook arrives (server crash between customer creation and DB write), the fallback tries to match by `session.customer_details.email`. Monitor logs after first real payment for `[stripe] checkout.session.completed: no user found` errors.
 - **Stripe Customer Portal must be activated manually** — `create-portal-session` returns a Stripe error until the Customer Portal is configured in Stripe Dashboard → Settings → Billing → Customer Portal. Easy to forget during setup.
 - **Subscription gating is currently disabled** — `STRIPE_ENABLED` is not set, so `requireSubscription` passes all authenticated users through. Set `STRIPE_ENABLED=true` in Railway once Stripe is fully configured to enforce the paywall.
+- **Railway custom domain SSL requires two DNS records** — CNAME alone is not sufficient. Must also add a `_railway-verify.<subdomain>` TXT record in GoDaddy. SSL provisioning will stall until both records are present.
 
 ---
 
@@ -179,6 +181,7 @@ function esc(s) {
 | Apr 2026 | `esc()` helper for `innerHTML` in admin.html | User-supplied values (email) must never be injected raw into innerHTML — always escape `&`, `<`, `>`, `"`, `'` before rendering. Signup only validates `@` presence; a crafted email is a stored XSS vector without escaping. |
 | Apr 2026 | `isSeed` flag on admin user list | Server sets `isSeed: true` on the seed user's row so the frontend can hide the Delete button. Avoids confusing UX where the seed user sees a Delete button that the server would block anyway. |
 | Apr 2026 | `last_login` tracked on every successful login | Needed for admin dashboard visibility. Existing users have `NULL`; displays as "Never" in the admin table. Written in the `POST /api/auth/login` handler after password verification succeeds. |
+| Apr 2026 | Restored email-based admin delete route alongside ID-based route | CLI testing requires email-based deletion; ID-based route serves the UI |
 
 ---
 
@@ -199,6 +202,6 @@ function esc(s) {
 ### Phase 3 — Polish
 - [ ] Configure Stripe webhook in production + test real $5 payment end to end
 - [ ] Activate Customer Portal in Stripe Dashboard
-- [ ] Switch BASE_URL to track.mangacreativestudios.com once DNS propagates
-- [ ] Email open notifications (webhook or email alert on open)
+- [x] Switch BASE_URL to track.mangacreativestudios.com ✅ Apr 9 2026
+- [ ] **ET-25 — Email open notifications (webhook or email alert when recipient opens) ← NEXT UP**
 - [x] Admin dashboard to manage users ✅ Apr 8 2026
