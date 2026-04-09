@@ -178,10 +178,6 @@ if (params.get('verified') === '1') {
   showMsg('Email verified! You can now log in.', 'success');
 }
 
-// If already logged in, go straight to the app
-if (localStorage.getItem('token')) {
-  window.location.href = '/app';
-}
 
 function showTab(tab) {
   document.getElementById('form-login').style.display = tab === 'login' ? '' : 'none';
