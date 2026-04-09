@@ -269,7 +269,8 @@ const server = http.createServer(async (req, res) => {
     const user = db.getUserByVerificationToken.get(token);
     if (!user) { return json(res, 400, { error: 'Invalid or expired verification link' }); }
 
-    db.verifyUserEmail.run(user.id);
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    db.verifyUserEmail.run({ id: user.id, trialEndsAt });
     res.writeHead(302, { Location: '/login?verified=1' });
     return res.end();
   }
