@@ -8,7 +8,7 @@ const db = require('./lib/db');
 const { isAutomatedScanner } = require('./lib/scanner');
 const { geoLookup } = require('./lib/geo');
 const { hashPassword, comparePassword, signToken, verifyToken } = require('./lib/auth');
-const { sendVerificationEmail } = require('./lib/email');
+const { sendVerificationEmail, sendOpenNotification } = require('./lib/email');
 const Stripe = require('stripe');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -121,6 +121,22 @@ const server = http.createServer(async (req, res) => {
         viaProxy: viaProxy ? 1 : 0,
         scannerReason: scannerReason || null,
       });
+
+      // Notify owner on first real open
+      const isFirstRealOpen = !viaProxy && opens.filter(o => !o.via_proxy).length === 0;
+      if (isFirstRealOpen) {
+        const owner = db.getUserById.get(email.user_id);
+        if (owner) {
+          sendOpenNotification({
+            toEmail: owner.email,
+            subject: email.subject,
+            recipient: email.recipient,
+            timestamp: new Date().toISOString(),
+            city: geo.city,
+            country: geo.country,
+          }).catch(e => console.error(`[notify] Failed to send open notification for ${trackId}:`, e.message));
+        }
+      }
 
       // Retroactively patch earlier rapid-fire hits from the same IP/trackId
       if (scannerReason === 'rapid_fire_scanner') {
