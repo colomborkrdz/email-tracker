@@ -552,6 +552,32 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------------------
+  // ADMIN — delete user by email
+  // -------------------------------------------------------------------------
+  if (pathname === '/api/admin/delete-user' && req.method === 'DELETE') {
+    const userId = requireAuth(req, res);
+    if (!userId) return;
+
+    const caller = db.getUserById.get(userId);
+    const seedEmail = process.env.SEED_USER_EMAIL && process.env.SEED_USER_EMAIL.toLowerCase().trim();
+    if (!caller || caller.email !== seedEmail) return json(res, 403, { error: 'Forbidden' });
+
+    let body;
+    try { body = await readBody(req); }
+    catch { return json(res, 400, { error: 'Invalid JSON' }); }
+
+    const email = body.email && typeof body.email === 'string' ? body.email.toLowerCase().trim() : null;
+    if (!email) return json(res, 400, { error: 'email is required' });
+
+    const target = db.getUserByEmail.get(email);
+    if (!target) return json(res, 404, { error: 'User not found' });
+    if (target.email === seedEmail) return json(res, 400, { error: 'Cannot delete the seed user' });
+
+    db.db.prepare('DELETE FROM users WHERE id = ?').run(target.id);
+    return json(res, 200, { ok: true, deleted: email });
+  }
+
+  // -------------------------------------------------------------------------
   // Static files
   // -------------------------------------------------------------------------
   if (pathname === '/' || pathname === '/index.html') {
