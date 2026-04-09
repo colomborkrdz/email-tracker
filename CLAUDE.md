@@ -52,7 +52,7 @@ stripe_customer_id, subscription_status, trial_ends_at, last_login
 - `GET /app` → serves `public/app.html` (public file; JS redirects to `/login` if no JWT)
 - `GET /login` → serves `public/login.html`
 - `GET /billing` → serves `public/billing.html`
-- `GET /pixel?id=TRACK_ID` → logs open, returns 1x1 GIF pixel ⚠️ query param, NOT path segment. **Permanently public, no auth.**
+- `GET /pixel?id=TRACK_ID` → logs open, returns 1x1 GIF pixel ⚠️ query param, NOT path segment. **Permanently public, no auth.** On first real open (`viaProxy=false`), fires `sendOpenNotification()` to the tracked email owner via Resend — fire-and-forget, never blocks pixel response.
 - `POST /api/auth/signup` → creates account, sends verification email
 - `POST /api/auth/login` → returns JWT on success
 - `GET /api/auth/verify-email?token=...` → activates account, redirects to `/login?verified=1`
@@ -140,6 +140,7 @@ function esc(s) {
 - ✅ Email verification flow tested and working (Resend)
 - ✅ Stripe billing implemented (Phase 2) — pending production wiring
 - ✅ Admin dashboard complete (Phase 3) — user list, activate/deactivate/delete, stats
+- ✅ Email open notifications complete (ET-25) — first real open triggers Resend notification to owner ✅ Apr 9 2026
 
 ### Next Up
 - [ ] Configure Stripe webhook in production (register endpoint in Stripe Dashboard)
@@ -159,6 +160,7 @@ function esc(s) {
 - **Stripe Customer Portal must be activated manually** — `create-portal-session` returns a Stripe error until the Customer Portal is configured in Stripe Dashboard → Settings → Billing → Customer Portal. Easy to forget during setup.
 - **Subscription gating is currently disabled** — `STRIPE_ENABLED` is not set, so `requireSubscription` passes all authenticated users through. Set `STRIPE_ENABLED=true` in Railway once Stripe is fully configured to enforce the paywall.
 - **Railway custom domain SSL requires two DNS records** — CNAME alone is not sufficient. Must also add a `_railway-verify.<subdomain>` TXT record in GoDaddy. SSL provisioning will stall until both records are present.
+- **Race condition on simultaneous pixel hits could send duplicate notifications** — if two real opens arrive before either inserts, both read an empty `opens` snapshot and both fire a notification. Acceptable for now; fix with a `notification_sent` boolean column on `emails` if it becomes a problem in practice.
 
 ---
 
@@ -182,6 +184,8 @@ function esc(s) {
 | Apr 2026 | `isSeed` flag on admin user list | Server sets `isSeed: true` on the seed user's row so the frontend can hide the Delete button. Avoids confusing UX where the seed user sees a Delete button that the server would block anyway. |
 | Apr 2026 | `last_login` tracked on every successful login | Needed for admin dashboard visibility. Existing users have `NULL`; displays as "Never" in the admin table. Written in the `POST /api/auth/login` handler after password verification succeeds. |
 | Apr 2026 | Restored email-based admin delete route alongside ID-based route | CLI testing requires email-based deletion; ID-based route serves the UI |
+| Apr 2026 | First-open detection uses pre-insert opens snapshot | `opens` array is fetched before `insertOpen.run()` — snapshot-before-insert pattern avoids a DB re-query and naturally captures first-open state |
+| Apr 2026 | Notification is fire-and-forget with `.catch()` | Resend failures must never delay the pixel response — tracking reliability takes priority over notification delivery |
 
 ---
 
