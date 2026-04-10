@@ -102,7 +102,14 @@ const server = http.createServer(async (req, res) => {
       }
       const opens = db.getOpensByTrackId.all(trackId);
 
-      const { viaProxy, scannerReason } = isAutomatedScanner(ip, userAgent, trackId, opens, email.created_at);
+      let { viaProxy, scannerReason } = isAutomatedScanner(ip, userAgent, trackId, opens, email.created_at);
+
+      // ET-34: treat any hit within 60s of email creation as a compose pre-fetch
+      if (!viaProxy && (Date.now() - new Date(email.created_at).getTime()) < 60000) {
+        viaProxy = true;
+        scannerReason = 'compose_prefetch';
+      }
+
       const geo = viaProxy && scannerReason === 'google_proxy'
         ? { city: 'Gmail Proxy', region: '', country: 'Google' }
         : viaProxy
