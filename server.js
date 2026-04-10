@@ -122,9 +122,10 @@ const server = http.createServer(async (req, res) => {
         scannerReason: scannerReason || null,
       });
 
-      // Notify owner on first real open
+      // Notify owner on first real open (notified flag prevents duplicates)
       const isFirstRealOpen = !viaProxy && opens.filter(o => !o.via_proxy).length === 0;
-      if (isFirstRealOpen) {
+      if (isFirstRealOpen && email.notified === 0) {
+        db.markEmailNotified.run(trackId);
         const owner = db.getUserById.get(email.user_id);
         if (owner) {
           sendOpenNotification({
