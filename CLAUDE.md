@@ -127,11 +127,21 @@ function esc(s) {
 - Recipient's real open shows their actual city/country
 - Recipients must have "Show images" enabled in Gmail for tracking to work
 
+### Scanner Detection Strategies (`scannerReason` values)
+
+| Strategy | How detected |
+|----------|-------------|
+| `google_proxy` | IP in known Google proxy ranges (66.102.x, 66.249.x, 74.125.x, etc.) |
+| `known_scanner_range` | IP in known security scanner ranges |
+| `rapid_fire_scanner` | Multiple hits from same IP within 60s |
+| `compose_prefetch` | Hit within 60s of email `created_at` — covers Gmail compose pre-fetch when pixel HTML is pasted |
+
 ---
 
-## Current Status (as of April 8, 2026)
+## Current Status (as of April 10, 2026)
 
 - ✅ Railway deployment live and working
+- ✅ Custom domain live: track.mangacreativestudios.com ✅ Apr 10 2026
 - ✅ Pixel tracking working (opens logged with location + timestamp)
 - ✅ Dashboard showing correct Railway URLs
 - ✅ Google proxy detection working
@@ -140,7 +150,8 @@ function esc(s) {
 - ✅ Email verification flow tested and working (Resend)
 - ✅ Stripe billing implemented (Phase 2) — pending production wiring
 - ✅ Admin dashboard complete (Phase 3) — user list, activate/deactivate/delete, stats
-- ✅ Email open notifications complete (ET-25) — first real open triggers Resend notification to owner ✅ Apr 9 2026
+- ✅ Email open notifications working (ET-25) — first real open triggers Resend notification to owner ✅ Apr 9 2026
+- ✅ ET-34 compose pre-fetch fix — 60s gate prevents false opens when pasting pixel into Gmail ✅ Apr 10 2026
 
 ### Next Up
 - [ ] Configure Stripe webhook in production (register endpoint in Stripe Dashboard)
@@ -160,7 +171,6 @@ function esc(s) {
 - **Stripe Customer Portal must be activated manually** — `create-portal-session` returns a Stripe error until the Customer Portal is configured in Stripe Dashboard → Settings → Billing → Customer Portal. Easy to forget during setup.
 - **Subscription gating is currently disabled** — `STRIPE_ENABLED` is not set, so `requireSubscription` passes all authenticated users through. Set `STRIPE_ENABLED=true` in Railway once Stripe is fully configured to enforce the paywall.
 - **Railway custom domain SSL requires two DNS records** — CNAME alone is not sufficient. Must also add a `_railway-verify.<subdomain>` TXT record in GoDaddy. SSL provisioning will stall until both records are present.
-- **Race condition on simultaneous pixel hits could send duplicate notifications** — if two real opens arrive before either inserts, both read an empty `opens` snapshot and both fire a notification. Acceptable for now; fix with a `notification_sent` boolean column on `emails` if it becomes a problem in practice.
 
 ---
 
@@ -186,6 +196,8 @@ function esc(s) {
 | Apr 2026 | Restored email-based admin delete route alongside ID-based route | CLI testing requires email-based deletion; ID-based route serves the UI |
 | Apr 2026 | First-open detection uses pre-insert opens snapshot | `opens` array is fetched before `insertOpen.run()` — snapshot-before-insert pattern avoids a DB re-query and naturally captures first-open state |
 | Apr 2026 | Notification is fire-and-forget with `.catch()` | Resend failures must never delay the pixel response — tracking reliability takes priority over notification delivery |
+| Apr 2026 | 60s compose pre-fetch gate (ET-34) | Gmail compose pre-fetches pixel when HTML is pasted — 60s gate after email creation prevents false opens and notifications |
+| Apr 2026 | `notified` column on emails table | Prevents duplicate notifications from late Google proxy hits past the 600s gate; `markEmailNotified` runs before Resend call to guarantee exactly one notification per tracked email |
 
 ---
 
@@ -207,5 +219,5 @@ function esc(s) {
 - [ ] Configure Stripe webhook in production + test real $5 payment end to end
 - [ ] Activate Customer Portal in Stripe Dashboard
 - [x] Switch BASE_URL to track.mangacreativestudios.com ✅ Apr 9 2026
-- [ ] **ET-25 — Email open notifications (webhook or email alert when recipient opens) ← NEXT UP**
+- [x] ET-25 — Email open notifications ✅ Apr 9 2026
 - [x] Admin dashboard to manage users ✅ Apr 8 2026
